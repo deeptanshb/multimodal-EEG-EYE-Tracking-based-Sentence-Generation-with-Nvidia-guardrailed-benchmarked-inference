@@ -584,11 +584,11 @@ If you use this codebase or results, please cite:
 
 ```bibtex
 @misc{eeg2text2025,
-  title   = {EEG2Text: Brain-to-Language Decoding with Hierarchical
+  title   = {EEG+EYE2Text: Brain-to-Language Decoding with Hierarchical
              Temporal Pooling and Quantum-Classical Hybrid Architecture},
-  year    = {2025},
+  year    = {2026},
   note    = {EEG2TextTransformerV9 + QuantumFusionProjector on ZuCo corpus.
-             TF BLEU-1 30.86\%, BERTScore F1 85.51\%.}
+             TF BLEU-1 31.02\%, BERTScore F1 85.51\%.}
 }
 ```
 
