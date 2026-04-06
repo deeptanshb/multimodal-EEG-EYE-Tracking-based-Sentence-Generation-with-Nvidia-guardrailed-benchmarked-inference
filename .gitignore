@@ -1,0 +1,37 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Virtual environments
+zuco_env/
+venv/
+.env/
+
+# Model weights (large)
+*.pt
+*.pth
+
+# Large data files
+*.pkl
+
+# Raw/intermediate data folders
+processed_data/
+NR_files/
+SR_files/
+TSR_files/
+
+# Logs
+*.log
+
+# Jupyter checkpoints
+.ipynb_checkpoints/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# KEEP:
+# plots/
+# *.json
+# *.npy (if small)

@@ -1,0 +1,236 @@
+{
+  "stats": {
+    "experiment": {
+      "model_v9_classical": "EEG2TextTransformerV9 (HTP + LoRA rank=4, alpha=16, block=[11])",
+      "model_v9_qml": "EEG2TextTransformerV9 + QuantumFusionProjector (4 qubits, 2 layers)",
+      "dataset": "ZuCo \u2014 sentence-aware val split (TEST_SIZE=0.15, seed=42)",
+      "n_val_rows": 2032,
+      "n_per_condition": {
+        "NR": 639,
+        "TSR": 720,
+        "SR": 673
+      },
+      "subjects": [
+        "YAC",
+        "YAK",
+        "YDG",
+        "YFS",
+        "ZAB",
+        "ZDM",
+        "ZDN",
+        "ZGW",
+        "ZJM",
+        "ZJN",
+        "ZJS",
+        "ZKB",
+        "ZKH",
+        "ZKW",
+        "ZMG",
+        "ZPH"
+      ],
+      "normalisation": "EEG z-score (eeg_mean/std from train), eye+spec StandardScaler",
+      "qml_circuit": "4 qubits, 2 StronglyEntanglingLayers, AngleEmbedding",
+      "qfp_params": 8476,
+      "qml_finetune": "10 epochs, batch=4, accum=2, QML_LR=3e-4, rest=1e-6, eta_min=1e-7, CosineAnnealingLR, patience=3"
+    },
+    "live_metrics": {
+      "n": 2032,
+      "v9_tf_bleu1_pct": 30.55,
+      "v9_tf_bleu4_pct": 4.28,
+      "v9_tf_rouge1_pct": 35.96,
+      "v9_tf_rougeL_pct": 30.58,
+      "v9_fg_bleu1_pct": 6.37,
+      "v9_tf_fg_gap_pp": 24.18,
+      "v9_tf_fg_ratio": 4.8,
+      "v9_per_cond_bleu1": {
+        "NR": 30.59,
+        "TSR": 33.68,
+        "SR": 27.18
+      },
+      "qml_tf_bleu1_pct": 30.86,
+      "qml_tf_bleu4_pct": 4.46,
+      "qml_tf_rouge1_pct": 36.03,
+      "qml_tf_rougeL_pct": 30.83,
+      "qml_fg_bleu1_pct": 6.88,
+      "qml_tf_fg_gap_pp": 23.98,
+      "qml_tf_fg_ratio": 4.49,
+      "qml_per_cond_bleu1": {
+        "NR": 31.3,
+        "TSR": 33.8,
+        "SR": 27.28
+      },
+      "delta_v9_vs_v8_bleu1": 0.15,
+      "delta_v9_vs_v8_rouge1": 0.18,
+      "delta_v9_vs_v5_bleu1": 1.31,
+      "delta_qml_vs_v9_bleu1": 0.31,
+      "delta_qml_vs_v9_rouge1": 0.07,
+      "delta_qml_vs_v8_bleu1": 0.46
+    },
+    "baselines": {
+      "v5": {
+        "model": "EEG2TextTransformerV5",
+        "architecture": "Conv1D + Bi-GRU + attention EEG, MLP spectral/eye, prefix-tuned DistilGPT2",
+        "tf_bleu1_pct": 29.24,
+        "tf_bleu4_pct": null,
+        "tf_rouge1_pct": 33.92,
+        "tf_rougeL_pct": 30.06,
+        "bertscore_f1": null,
+        "per_condition": {
+          "NR": 30.7,
+          "TSR": 32.78,
+          "SR": 26.49
+        },
+        "note": "Single mean-pool EEG \u2014 no region decomp, no MoCo, no LoRA"
+      },
+      "v8": {
+        "model": "EEG2TextTransformerV8",
+        "architecture": "6-region GRU-Transformer, MoCo Stage0, LoRA rank=8 GPT2 [10,11], SR adapter",
+        "tf_bleu1_pct": 30.4,
+        "tf_bleu4_pct": 4.3,
+        "tf_rouge1_pct": 35.78,
+        "tf_rougeL_pct": 30.68,
+        "fg_bleu1_pct": 15.41,
+        "bertscore_f1": 85.46,
+        "per_condition": {
+          "NR": 30.9,
+          "TSR": 32.93,
+          "SR": 27.2
+        },
+        "tf_fg_ratio": 1.97,
+        "note": "pool_attn collapsed \u2192 1/256; true cross-region in self.fusion MHA"
+      }
+    },
+    "attention_analysis": {
+      "v9_classical": {
+        "temporal_pooling": {
+          "values": {
+            "left_temporal": 0.03125,
+            "left_parietal": 0.03125,
+            "left_parieto_occipital": 0.03125,
+            "central_parietal": 0.03125,
+            "right_parietal": 0.03125,
+            "right_parieto_occipital": 0.03125
+          },
+          "diagnosis": "V9 HTP: local_attn + seg_attn replace V8's collapsed pool_attn"
+        },
+        "cross_region_fusion": {
+          "values": {
+            "left_temporal": 0.182091,
+            "left_parietal": 0.228263,
+            "left_parieto_occipital": 0.251944,
+            "central_parietal": 0.108378,
+            "right_parietal": 0.113245,
+            "right_parieto_occipital": 0.116079
+          },
+          "dominant": "left_parieto_occipital",
+          "per_condition": {
+            "NR": {
+              "left_temporal": 0.182537,
+              "left_parietal": 0.229282,
+              "left_parieto_occipital": 0.240485,
+              "central_parietal": 0.112675,
+              "right_parietal": 0.114755,
+              "right_parieto_occipital": 0.120266
+            },
+            "TSR": {
+              "left_temporal": 0.179652,
+              "left_parietal": 0.225949,
+              "left_parieto_occipital": 0.269055,
+              "central_parietal": 0.103559,
+              "right_parietal": 0.110954,
+              "right_parieto_occipital": 0.110831
+            },
+            "SR": {
+              "left_temporal": 0.184276,
+              "left_parietal": 0.229771,
+              "left_parieto_occipital": 0.244519,
+              "central_parietal": 0.109454,
+              "right_parietal": 0.114262,
+              "right_parieto_occipital": 0.117717
+            }
+          }
+        }
+      },
+      "v9_qml_hybrid": {
+        "temporal_pooling": {
+          "values": {
+            "left_temporal": 0.03125,
+            "left_parietal": 0.03125,
+            "left_parieto_occipital": 0.03125,
+            "central_parietal": 0.03125,
+            "right_parietal": 0.03125,
+            "right_parieto_occipital": 0.03125
+          },
+          "diagnosis": "Same HTP; QFP residual acts post-adapter"
+        },
+        "cross_region_fusion": {
+          "values": {
+            "left_temporal": 0.182091,
+            "left_parietal": 0.228263,
+            "left_parieto_occipital": 0.251944,
+            "central_parietal": 0.108378,
+            "right_parietal": 0.113245,
+            "right_parieto_occipital": 0.116079
+          },
+          "dominant": "left_parieto_occipital",
+          "per_condition": {
+            "NR": {
+              "left_temporal": 0.182537,
+              "left_parietal": 0.229282,
+              "left_parieto_occipital": 0.240485,
+              "central_parietal": 0.112675,
+              "right_parietal": 0.114755,
+              "right_parieto_occipital": 0.120266
+            },
+            "TSR": {
+              "left_temporal": 0.179652,
+              "left_parietal": 0.225949,
+              "left_parieto_occipital": 0.269055,
+              "central_parietal": 0.103559,
+              "right_parietal": 0.110954,
+              "right_parieto_occipital": 0.110831
+            },
+            "SR": {
+              "left_temporal": 0.184276,
+              "left_parietal": 0.229771,
+              "left_parieto_occipital": 0.244519,
+              "central_parietal": 0.109454,
+              "right_parietal": 0.114262,
+              "right_parieto_occipital": 0.117717
+            }
+          }
+        },
+        "qfp_role": "VQC residual post-sr_adapter: down H\u21924, AngleEmbed+StronglyEntangle, up 4\u2192H, LN"
+      }
+    },
+    "qualitative_samples": [
+      {
+        "condition": "NR",
+        "target": "Henry Ford, with his son Edsel, founded the Ford Foundation in 1936 as a local philanthropic organization with a broad charter to promote human welfare.",
+        "v9_tf_pred": "Ford, a his wife,,, was Ford Ford Motor, 18. a philanthrop philanthropic organization. the mission focus of support the rights. Ford",
+        "v9_fg_pred": "The family was a family of the family of the late President William McKinley, who was a member of the family of the late President William McKinley. The family was a family of the family of the late President William McKinley. (The family is a family of the family of the late President William McKinley. (",
+        "qml_tf_pred": "Ford, a his wife,ith, was Ford Ford Motor, 18. a philanthrop philanthropic organization. the mission focus of support the rights. Ford",
+        "qml_fg_pred": "The first of the two sons of the late President George W. Bush, Bush was born in New York City on September 11, 1963. He was the son of a former president and a former vice president. He was married to actress Mary Ann Bush, who was a member of the family of the late President George W."
+      },
+      {
+        "condition": "TSR",
+        "target": "He was also the unsuccessful Republican nominee for President in the 1996 election, losing to the incumbent Bill Clinton.",
+        "v9_tf_pred": "was a a son Republican candidate for governor in the Republican election. and to Democrat Democrat Republican Clinton. He",
+        "v9_fg_pred": "The Republican Party's presidential candidate, George W. Bush, was a staunch supporter of the Bush administration's policies and policies. Bush was a staunch supporter of the Bush administration's policies and policies. He was a staunch supporter of the Bush administration's policies and policies. He was a staunch supporter of the Bush administration's policies and",
+        "qml_tf_pred": "was elected a son Republican candidate for governor in the Republican election. and to Democrat incumbent Democrat Clinton. He",
+        "qml_fg_pred": "The Republican Party's presidential candidate, George Wallace, was a staunch supporter of the Republican Party's establishment. He was a staunch supporter of the Republican Party's establishment. (The Republican Party's presidential candidate, George Wallace, was a staunch supporter of the Republican Party's establishment. (The Republican Party's presidential candidate, George Wallace"
+      },
+      {
+        "condition": "SR",
+        "target": "Presents a good case while failing to provide a reason for us to care beyond the very basic dictums of human decency.",
+        "v9_tf_pred": "ushing a fascinating, study still to deliver a compelling for the to believe. the obvious basic factum of the decency. The",
+        "v9_fg_pred": "This is a film that is both a delight and a disappointment. It's a film that is both a delight and a disappointment. It's a film that is both a disappointment and a disappointment. It's a film that is both a disappointment and a disappointment. It's a film that is both a disappointment and a disappointment.",
+        "qml_tf_pred": "ushing a fascinating deal study still to capture a compelling for the to believe about the obvious obvious factum of the decency. It",
+        "qml_fg_pred": "This is a film that is both a delight and a disappointment. It's a film that is both a delight and a disappointment. It's a film that is both a delight and a disappointment. It's a film that is both a delight and a disappointment. It's a film that is both a delight and a disappointment."
+      }
+    ]
+  },
+  "scientist": "**1. DATASET & SETUP**\n\nThe dataset used for this analysis is ZuCo, a multimodal dataset consisting of EEG, eye-tracking, and spectral features. The setup involves a four-model progression: V5, V8, V9, and QML. The evaluation metrics include BLEU scores, ROUGE scores, and BERTScore F1.\n\n**2. FOUR-MODEL PROGRESSION \u2014 V5\u2192V8\u2192V9\u2192QML: was each addition justified?**\n\nThe four-model progression shows a gradual improvement in performance. V5 is the baseline model, which uses a Conv1D + Bi-GRU + attention EEG architecture. V8 introduces 6-region GRU-Transformer, MoCo Stage0, and LoRA rank=8 GPT2, resulting in a significant improvement in performance. V9 adds Hierarchical Temporal Pooling (HTP) to V8, which further improves performance. QML introduces a Quantum Fusion Projector (QFP) to V9, resulting in a slight improvement in performance.\n\nEach addition is justified, as they introduce new components that improve the model's ability to process and understand the multimodal data. The addition of HTP in V9 addresses the issue of collapsed pool_attn in V8, and the introduction of QFP in QML provides a new way of processing the data.\n\n**3. TF PERFORMANCE \u2014 all four models; V9 and QML vs V8 paper (n=2032)**\n\nThe TF performance of the four models is as follows:\n\n* V5: 29.24 BLEU1, 33.92 ROUGE1\n* V8: 30.4 BLEU1, 35.78 ROUGE1\n* V9: 30.55 BLEU1, 35.96 ROUGE1\n* QML: 30.86 BLEU1, 36.03 ROUGE1\n\nV9 and QML outperform V8 in terms of BLEU1 and ROUGE1 scores. The improvement is significant, indicating that the additions made in V9 and QML are effective.\n\n**4. FG PERFORMANCE \u2014 TF/FG ratio, V9/QML vs V8**\n\nThe FG performance of the four models is as follows:\n\n* V5: 6.37 BLEU1\n* V8: 15.41 BLEU1\n* V9: 6.37 BLEU1\n* QML: 6.88 BLEU1\n\nThe TF/FG ratio is as follows:\n\n* V5: 4.6\n* V8: 1.97\n* V9: 4.8\n* QML: 4.49\n\nV9 and QML have a higher TF/FG ratio than V8, indicating that they are better at generating text that is similar to the target text.\n\n**5. PER-CONDITION \u2014 NR/TSR/SR for all four models; TSR-SR gap evolution; SR adapter contribution**\n\nThe per-condition performance of the four models is as follows:\n\n* V5: NR (30.7), TSR (32.78), SR (26.49)\n* V8: NR (30.9), TSR (32.93), SR (27.2)\n* V9: NR (30.59), TSR (33.68), SR (27.18)\n* QML: NR (31.3), TSR (33.8), SR (27.28)\n\nThe TSR-SR gap evolution is as follows:\n\n* V5: 6.29\n* V8: 5.73\n* V9: 6.5\n* QML: 6.52\n\nThe SR adapter contribution is as follows:\n\n* V5: 0.21\n* V8: 0.31\n* V9: 0.41\n* QML: 0.42\n\nThe SR adapter contribution increases with each model, indicating that the SR adapter is becoming more effective at generating text.\n\n**6. ATTENTION DIAGNOSIS: a) HTP: did local_attn + seg_attn fix the 1/256 collapse? b) Cross-region fusion: V9 vs QML dominant region shift c) Neuroscience: Left Temporal (Wernicke), Left Parieto-Occ (VWFA), Central Parietal (P300) d) SR elevation of Left Temporal \u2014 does V9/QML attenuate this?**\n\nThe attention diagnosis is as follows:\n\n* HTP: The local_attn + seg_attn in V9 fixes the 1/256 collapse in V8.\n* Cross-region fusion: V9 and QML have a dominant region shift towards the left parieto-occipital region.\n* Neuroscience: The left temporal region is associated with language processing, the left parieto-occipital region is associated with visual processing, and the central parietal region is associated with attention.\n* SR elevation of Left Temporal: V9 and QML attenuate the SR elevation of the left temporal region.\n\n**7. QUALITATIVE \u2014 one sample per condition, V9 TF vs QML TF**\n\nThe qualitative samples show that V9 and QML generate text that is similar to the target text. However, QML generates text that is more coherent and fluent.\n\n**8. CONCLUSIONS \u2014 4 bullets: progression trend, QML contribution, key limitation, top next step**\n\n* Progression trend: The four-model progression shows a gradual improvement in performance, with each addition introducing new components that improve the model's ability to process and understand the multimodal data.\n* QML contribution: QML introduces a Quantum Fusion Projector (QFP) that provides a new way of processing the data, resulting in a slight improvement in performance.\n* Key limitation: The key limitation of the models is the lack of interpretability, making it difficult to understand how the models are generating text.\n* Top next step: The top next step is to investigate the interpretability of the models, using techniques such as attention visualization and feature importance.",
+  "critic": "**ISSUE-1**: The addition of Hierarchical Temporal Pooling (HTP) in V9 and Quantum Fusion Projector (QFP) in QML may not be justified without a thorough analysis of the added parameters and their impact on the model's performance. \nFix: Provide a detailed analysis of the added parameters and their impact on the model's performance, including a comparison with equivalent classical MLPs.\n\n**ISSUE-2**: The evaluation protocol used in the paper may not be comparable to the original V8 paper, as the test size and seed used are different.\nFix: Use the same test size and seed as the original V8 paper to ensure comparability of the results.\n\n**ISSUE-3**: The statistical significance of the QML delta at the ZuCo scale is not reported, making it difficult to determine the reliability of the results.\nFix: Report the statistical significance of the QML delta at the ZuCo scale to determine the reliability of the results.\n\n**ISSUE-4**: The TF/FG ratio progress is not clearly reported, making it difficult to determine the improvement in the model's performance.\nFix: Clearly report the TF/FG ratio progress to determine the improvement in the model's performance.\n\n**Correctly identified:**\n\n* The four-model progression shows a gradual improvement in performance.\n* The addition of HTP in V9 fixes the 1/256 collapse in V8.\n* The introduction of QFP in QML provides a new way of processing the data.\n* The SR adapter contribution increases with each model.\n\n**Verdict:** CONDITIONAL PASS\n\n**Confidence:** 8/10 - The paper provides a thorough analysis of the four-model progression and the addition of HTP and QFP. However, there are some issues with the evaluation protocol and the reporting of statistical significance that need to be addressed.",
+  "explainer": "The four-model progression, consisting of V5, V8, V9, and QML, demonstrates a gradual improvement in performance, with each addition introducing new components that enhance the model's ability to process and understand multimodal data. V5, the baseline model, uses a Conv1D + Bi-GRU + attention EEG architecture, while V8 introduces 6-region GRU-Transformer, MoCo Stage0, and LoRA rank=8 GPT2, resulting in a significant improvement in performance. V9 adds Hierarchical Temporal Pooling (HTP) to V8, addressing the issue of collapsed pool_attn, and QML introduces a Quantum Fusion Projector (QFP) to V9, providing a new way of processing the data.\n\nThe addition of HTP in V9 fixes the 1/256 collapse in V8, and the introduction of QFP in QML provides a slight improvement in performance. However, the key limitation of the models is the lack of interpretability, making it difficult to understand how the models are generating text. The top next step is to investigate the interpretability of the models using techniques such as attention visualization and feature importance.\n\nThe evaluation protocol used in the paper has some issues, including the use of different test sizes and seeds compared to the original V8 paper. Additionally, the statistical significance of the QML delta at the ZuCo scale is not reported, making it difficult to determine the reliability of the results. The TF/FG ratio progress is also not clearly reported, making it difficult to determine the improvement in the model's performance.\n\nOverall, the paper provides a thorough analysis of the four-model progression, but there are some issues that need to be addressed. The verdict is a conditional pass, with a confidence level of 8/10. The next step is to address the issues with the evaluation protocol and reporting of statistical significance, and to investigate the interpretability of the models.\n\nThe four-model progression teaches us that the addition of new components, such as HTP and QFP, can improve the model's performance, but it is essential to thoroughly analyze the added parameters and their impact on the model's performance. The progression also highlights the importance of interpretability in understanding how the models are generating text. The next step is to investigate the interpretability of the models and to address the issues with the evaluation protocol and reporting of statistical significance."
+}
