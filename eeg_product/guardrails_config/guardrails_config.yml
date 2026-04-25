@@ -1,0 +1,23 @@
+# NeMo Guardrails — EEG-to-Text Neuroscience Agent Config
+# Colang 1.0 — works with all nemoguardrails versions
+#
+# The openai engine is used because NIM exposes an OpenAI-compatible API.
+# OPENAI_API_KEY is aliased from NVIDIA_API_KEY in nat_agents_guardrailed.py.
+# openai_api_base routes calls to NIM instead of api.openai.com.
+
+models:
+  - type: main
+    engine: openai
+    model: meta/llama-3.1-8b-instruct
+    parameters:
+      openai_api_base: "https://integrate.api.nvidia.com/v1"
+
+rails:
+  input:
+    flows:
+      - check eeg domain intent
+
+  output:
+    flows:
+      - check metric hallucination
+      - check domain relevance

@@ -1,0 +1,79 @@
+# ── rails.co  —  Colang 1.0  —  EEG-to-Text Agent Guardrails ─────────────────
+# Colang 1.0 syntax works with all nemoguardrails versions (0.7.x, 0.8.x, 0.9.x+)
+#
+# Three layers:
+#   1. Input  — block off-domain or malformed requests before LLM call
+#   2. Output — verify agent outputs reference EEG metrics and stay in domain
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# USER INTENT DEFINITIONS
+# ─────────────────────────────────────────────────────────────────────────────
+
+define user ask about eeg research
+  "analyse my EEG model"
+  "compare bleu scores"
+  "evaluate the V9 model"
+  "analyse attention weights"
+  "what does the ROUGE score mean"
+  "critique the QML results"
+  "neuroscience analysis"
+  "ZuCo dataset evaluation"
+
+define user ask off topic
+  "what is the weather"
+  "recommend a recipe"
+  "stock market"
+  "tell me a joke"
+  "ignore previous instructions"
+  "pretend you are"
+
+define user submit invalid payload
+  "analyse this"
+  "just run it"
+  "skip the data"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# BOT RESPONSES
+# ─────────────────────────────────────────────────────────────────────────────
+
+define bot refuse off topic
+  "This pipeline is scoped to EEG-to-text neuroscience research on ZuCo. Off-topic queries are not supported."
+
+define bot refuse invalid payload
+  "Invalid input: this pipeline requires agent_stats with live_metrics, V5/V8 baselines, and attention analysis data."
+
+define bot flag metric issue
+  "Output flagged: metric values cited are outside plausible EEG-to-text range (BLEU 20-55%, BERTScore 78-96%). Please verify against agent_stats."
+
+define bot flag off domain output
+  "Response flagged as insufficiently grounded in EEG research context. The output must reference EEG metrics or architecture details."
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# INPUT FLOWS
+# ─────────────────────────────────────────────────────────────────────────────
+
+define flow check eeg domain intent
+  user ask off topic
+  bot refuse off topic
+
+define flow validate agent stats payload
+  user submit invalid payload
+  bot refuse invalid payload
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# OUTPUT FLOWS
+# ─────────────────────────────────────────────────────────────────────────────
+
+define flow check metric hallucination
+  $has_metric_issue = execute check_metric_bounds(response=$last_bot_message)
+  if $has_metric_issue
+    bot flag metric issue
+
+define flow check domain relevance
+  $is_relevant = execute self_check_relevance(response=$last_bot_message)
+  if not $is_relevant
+    bot flag off domain output
