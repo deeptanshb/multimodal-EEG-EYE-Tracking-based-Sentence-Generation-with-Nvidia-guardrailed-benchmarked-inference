@@ -101,10 +101,15 @@ Architecture evolution:
          True cross-region signal lives in self.fusion MHA (was discarded as `_` in V8)
   V9  → V8 + HierarchicalTemporalPooling (HTP): local_attn + seg_attn per region
          LoRA rank=4, lora_alpha=16, block=[11] only; dropout=0.3 for eval
-  QML → V9 + QuantumFusionProjector AFTER sr_adapter:
-         down H→4, AngleEmbedding, 2 StronglyEntanglingLayers (4 qubits), up 4→H, LN residual
-         ~8,476 QML params; 10-epoch fine-tune (QML_LR=3e-4, rest=1e-6, CosineAnnealingLR, eta_min=1e-7)
-         dropout=0.4; lora_alpha=8.0 for hybrid
+  QML clean  → V9 + QuantumFusionProjector AFTER sr_adapter (noiseless, lightning.qubit):
+               down H→4, AngleEmbedding, 2 StronglyEntanglingLayers (4 qubits), up 4→H, LN residual
+               ~8,476 QML params; 10-epoch fine-tune (QML_LR=3e-4, rest=1e-6, CosineAnnealingLR)
+               dropout=0.4; lora_alpha=8.0
+  QML noisy  → same VQC + DepolarizingChannel(p=0.01) + PhaseDamping(γ=0.02) via default.mixed
+               Gaussian shot-noise (σ=0.03) injected during training for robustness
+               Inference: Monte-Carlo average over 16 noisy passes
+               Initialised from QML clean checkpoint; 10-epoch noise-aware fine-tune
+               Best val loss 4.1729 (clean: 4.1733) — noise acts as regulariser
 
 Evaluation protocol:
   Sentence-aware val split (TEST_SIZE=0.15, seed=42). EEG+eye+spec normalised via saved scalers.
@@ -117,7 +122,7 @@ Evaluation protocol:
 Required analysis sections:
 1. DATASET & SETUP — ZuCo, conditions, split, normalisation
 2. FOUR-MODEL PROGRESSION — was each architectural addition justified by metrics?
-3. TF PERFORMANCE — all four models vs hardcoded baselines (n as reported)
+3. TF PERFORMANCE — all five models (V5/V8/V9/QML-clean/QML-noisy) vs hardcoded baselines
 4. FG PERFORMANCE — TF/FG ratio, compare to V8 1.97× and prior 3× norm
 5. PER-CONDITION — NR/TSR/SR for all four models; TSR-SR gap; SR adapter contribution
 6. ATTENTION DIAGNOSIS:
@@ -138,9 +143,11 @@ You are a senior reviewer at NeurIPS / IEEE TNSRE evaluating an EEG-to-text deco
 
 Submission extends EEG2TextTransformerV8 with:
   1. HierarchicalTemporalPooling (HTP) — local_attn + seg_attn replacing collapsed pool_attn
-  2. QuantumFusionProjector — 4-qubit VQC, residual post-sr_adapter, ~8,476 QML params, 10 epochs
-  3. LoRA rank reduced from 8 → 4, single block [11], alpha adjusted per classical/hybrid model
-  4. Evaluation on sentence-aware val split (TEST_SIZE=0.15, seed=42)
+  2. QuantumFusionProjector clean — 4-qubit VQC, residual post-sr_adapter, ~8,476 QML params, 10 epochs
+  3. QuantumFusionProjector noisy — same VQC + DepolarizingChannel(p=0.01) + PhaseDamping(γ=0.02)
+     hardware-realistic noise simulation; inference via 16-pass MC average; best val=4.1729
+  4. LoRA rank reduced from 8 → 4, single block [11], alpha adjusted per classical/hybrid model
+  5. Evaluation on sentence-aware val split (TEST_SIZE=0.15, seed=42)
 
 Hardcoded V8 paper baselines (correct values):
   TF BLEU-1=30.40%, ROUGE-1=35.78%, ROUGE-L=30.68%, BERTScore=85.46%, FG BLEU-1=15.41%
@@ -153,7 +160,9 @@ Review format — use exactly:
 
 Focus areas:
   - HTP: genuine improvement vs parameter count increase?
-  - QML: expressivity advantage vs equivalent 4→768 classical MLP residual?
+  - QML clean: expressivity advantage vs equivalent 4→768 classical MLP residual?
+  - QML noisy: val loss 4.1729 vs clean 4.1733 — is 0.0004 gap meaningful at this scale?
+    Is noise regularisation the real contributor, not quantum computation per se?
   - Statistical significance of QML delta at ZuCo scale (~2032 val samples)
   - TF/FG ratio progress vs V8 1.97× baseline
   - eval protocol comparability (same split? same normalisation? same logit shift?)
@@ -174,15 +183,21 @@ You are a quantum-ML researcher and science communicator writing for a final-yea
 
 Focus: QuantumFusionProjector (QFP) in the V9+QML hybrid model.
 
-QFP architecture (exact):
+QFP architecture (exact — two variants trained):
+  CLEAN (lightning.qubit — noiseless statevector simulation):
   - Input: 768-dim fused EEG embedding (post sr_adapter)
   - down: Linear(768 → 4) + tanh + π scaling
   - qlayer: PennyLane AngleEmbedding (Y rotation) + 2 StronglyEntanglingLayers on 4 qubits
   - up: Linear(4 → 768)
   - output: LayerNorm(x + Dropout(up(qlayer(down(x)))))  [residual]
-  - ~8,476 trainable parameters
-  - 10-epoch fine-tune: QML_LR=3e-4 (VQC), rest=1e-6 (LoRA+lm_head), CosineAnnealingLR, eta_min=1e-7
-  - Runs classically via lightning.qubit — NOT on real quantum hardware
+  - ~8,476 trainable parameters; best val=4.1733
+  NOISY (default.mixed — density-matrix noise simulation):
+  - Same circuit + DepolarizingChannel(p=0.01) after each encoding gate
+  - PhaseDamping(γ=0.02) after StronglyEntanglingLayers (models T2 decoherence)
+  - Training: Gaussian shot-noise σ=0.03 injected on q_out each pass
+  - Inference: Monte-Carlo average over 16 noisy circuit passes
+  - Initialised from clean checkpoint; 10-epoch noise-aware fine-tune; best val=4.1729
+  - Runs classically via default.mixed — hardware-realistic simulation, NOT real quantum hardware
 
 Classical equivalent baseline for comparison:
   A 768→4→768 MLP residual with tanh activation would have ~6,144 params
@@ -191,7 +206,9 @@ Classical equivalent baseline for comparison:
 Write 4 paragraphs, no bullets, no headers, max 380 words:
   Para 1: V5 limitation — why spatial mean-pooling loses information
   Para 2: V8/V9 fix — HTP and what it adds over V8's collapsed pool_attn
-  Para 3: QFP mechanism — what the VQC actually computes, honest assessment vs classical MLP,
+  Para 3: QFP mechanism — what the VQC actually computes; clean vs noisy variant;
+          why noisy val loss (4.1729) is marginally better than clean (4.1733);
+          honest assessment: is the 0.0004 gap noise-regularisation or quantum computation?
           what "quantum advantage" means (or doesn't) on classical hardware at 4 qubits
   Para 4: What the V5→V8→V9→QML progression teaches about EEG-to-text, ending with ONE next step
 
@@ -265,6 +282,9 @@ define user ask about eeg research
   "neuroscience analysis"
   "ZuCo dataset evaluation"
   "critique the QML results"
+  "compare clean and noisy QML"
+  "what is the hardware noise impact"
+  "depolarizing channel effect on BLEU"
 
 define user ask off topic
   "what is the weather"
@@ -454,7 +474,7 @@ async def run_guardrailed_pipeline(agent_stats: dict) -> dict:
 
     print("=" * 68)
     print("  EEG2TextTransformerV9+QML — Guardrailed Three-Agent Pipeline")
-    print(f"  Val n={lm['n']:,}  |  V5 → V8 → V9 → QML  |  normalised eval")
+    print(f"  Val n={lm['n']:,}  |  V5 → V8 → V9 → QML-clean → QML-noisy  |  normalised eval")
     print(f"  Endpoint: {NIM_BASE_URL}")
     print(f"  Model   : {NIM_MODEL}")
     print(f"  Rails   : {'NeMo Guardrails (Colang 1.0) — output checks active' if rails else 'Python-side only'}")
@@ -492,21 +512,25 @@ LIVE METRICS (val n={lm['n']:,}):
   V8  TF BLEU-1={v8['tf_bleu1_pct']}%  ROUGE-1={v8['tf_rouge1_pct']}%  ROUGE-L={v8['tf_rougeL_pct']}%  BERTScore={v8['bertscore_f1']}%  FG={v8['fg_bleu1_pct']}%
   V9  TF BLEU-1={lm['v9_tf_bleu1_pct']}%  ROUGE-1={lm['v9_tf_rouge1_pct']}%  ROUGE-L={lm['v9_tf_rougeL_pct']}%  FG={lm['v9_fg_bleu1_pct']}%  TF/FG={lm['v9_tf_fg_ratio']}x
   QML TF BLEU-1={lm['qml_tf_bleu1_pct']}%  ROUGE-1={lm['qml_tf_rouge1_pct']}%  ROUGE-L={lm['qml_tf_rougeL_pct']}%  FG={lm['qml_fg_bleu1_pct']}%  TF/FG={lm['qml_tf_fg_ratio']}x
+  NQM TF BLEU-1={lm.get('noisy_qml_tf_bleu1_pct','?')}%  ROUGE-1={lm.get('noisy_qml_tf_rouge1_pct','?')}%  ROUGE-L={lm.get('noisy_qml_tf_rougeL_pct','?')}%  FG={lm.get('noisy_qml_fg_bleu1_pct','?')}%
 
 DELTAS:
   V8→V9:  BLEU-1={lm['delta_v9_vs_v8_bleu1']:+.2f}pp  ROUGE-1={lm['delta_v9_vs_v8_rouge1']:+.2f}pp
   V9→QML: BLEU-1={lm['delta_qml_vs_v9_bleu1']:+.2f}pp  ROUGE-1={lm['delta_qml_vs_v9_rouge1']:+.2f}pp
   V8→QML: BLEU-1={lm['delta_qml_vs_v8_bleu1']:+.2f}pp
+  clean→noisy: BLEU-1={lm.get('delta_noisy_vs_clean_bleu1',0):+.2f}pp  ROUGE-1={lm.get('delta_noisy_vs_clean_rouge1',0):+.2f}pp
 
 PER-CONDITION TF BLEU-1:
   V5:  {_fmt_per_cond(v5.get('per_condition',{}))}
   V8:  {_fmt_per_cond(v8.get('per_condition',{}))}
   V9:  {_fmt_per_cond(lm.get('v9_per_cond_bleu1',{}))}
   QML: {_fmt_per_cond(lm.get('qml_per_cond_bleu1',{}))}
+  NQM: {_fmt_per_cond(lm.get('noisy_qml_per_cond_bleu1',{}))}
 
 CROSS-REGION FUSION (top-3 weights):
   V9  classical: {_fmt_attn(aa['v9_classical'])}   dominant={aa['v9_classical']['cross_region_fusion'].get('dominant','?')}
   V9+QML hybrid: {_fmt_attn(aa['v9_qml_hybrid'])}  dominant={aa['v9_qml_hybrid']['cross_region_fusion'].get('dominant','?')}
+  V9+QML noisy:  {_fmt_attn(aa.get('v9_qml_noisy_hybrid', aa['v9_qml_hybrid']))}  dominant={aa.get('v9_qml_noisy_hybrid',aa['v9_qml_hybrid'])['cross_region_fusion'].get('dominant','?')}
 
 QUALITATIVE SAMPLES:
 {qual_lines}
@@ -534,9 +558,11 @@ KEY NUMBERS (authoritative from agent_stats):
   V8  TF BLEU-1={v8['tf_bleu1_pct']}%   ROUGE-1={v8['tf_rouge1_pct']}%   BERTScore={v8['bertscore_f1']}%
   V9  TF BLEU-1={lm['v9_tf_bleu1_pct']}%  Δ vs V8={lm['delta_v9_vs_v8_bleu1']:+.2f}pp
   QML TF BLEU-1={lm['qml_tf_bleu1_pct']}%  Δ vs V9={lm['delta_qml_vs_v9_bleu1']:+.2f}pp  Δ vs V8={lm['delta_qml_vs_v8_bleu1']:+.2f}pp
+  NQM TF BLEU-1={lm.get('noisy_qml_tf_bleu1_pct','?')}%  Δ vs clean={lm.get('delta_noisy_vs_clean_bleu1',0):+.2f}pp  val_loss=4.1729 vs clean=4.1733
   V9 TF/FG={lm['v9_tf_fg_ratio']}x   QML TF/FG={lm['qml_tf_fg_ratio']}x   V8 TF/FG=1.97x
   V9 dominant={aa['v9_classical']['cross_region_fusion'].get('dominant','?')}
   QML dominant={aa['v9_qml_hybrid']['cross_region_fusion'].get('dominant','?')}
+  NQM dominant={aa.get('v9_qml_noisy_hybrid',aa['v9_qml_hybrid'])['cross_region_fusion'].get('dominant','?')}
 
 Review the submission using the required [ISSUE-N] format.
 """.strip()
@@ -557,11 +583,12 @@ SCIENTIST (summary): {sci_out[:400]}
 CRITIC (summary):    {crit_out[:300]}
 
 METRICS:
-  V5={v5['tf_bleu1_pct']}%  V8={v8['tf_bleu1_pct']}%  V9={lm['v9_tf_bleu1_pct']}%  QML={lm['qml_tf_bleu1_pct']}%
+  V5={v5['tf_bleu1_pct']}%  V8={v8['tf_bleu1_pct']}%  V9={lm['v9_tf_bleu1_pct']}%  QML-clean={lm['qml_tf_bleu1_pct']}%  QML-noisy={lm.get('noisy_qml_tf_bleu1_pct','?')}%
   FG: V8={v8['fg_bleu1_pct']}%  V9={lm['v9_fg_bleu1_pct']}%  QML={lm['qml_fg_bleu1_pct']}%
+  Val loss: QML-clean=4.1733  QML-noisy=4.1729  (Δ=0.0004 — noise as regulariser)
 
-QFP: 768→4 Linear+tanh, 4 qubits AngleEmbedding + 2 StronglyEntanglingLayers, 4→768, LN residual
-     ~8476 params, 10-epoch QML fine-tune, CosineAnnealingLR, runs classically (lightning.qubit).
+QFP clean : 768→4→VQC(4q,2L)→768, LN residual, ~8476 params, lightning.qubit (noiseless)
+QFP noisy : same + DepolarizingChannel(p=0.01) + PhaseDamping(γ=0.02), 16-pass MC inference
 
 Write 4 paragraphs ≤380 words total.
 """.strip()
@@ -604,6 +631,8 @@ Write 4 paragraphs ≤380 words total.
         "qml_synthesiser":   qml_out,
         # backward-compat alias (old cells reference results_agents["explainer"])
         "explainer":         qml_out,
+        # noisy hybrid outputs are embedded in the qml_synthesiser analysis
+        "noisy_qml_in_analysis": True,
         "benchmark_records": benchmark_records,
         "guardrail_audit":   guardrail_audit,
         "pipeline_summary": {

@@ -1,9 +1,9 @@
 {
   "submitted_model": "EEGConformer_LoRA_v1",
-  "scientist": "**Analysis of the submitted model: EEGConformer_LoRA_v1**\n\n**1. Architecture analysis:**\nThe submitted model, EEGConformer_LoRA_v1, introduces several changes to the known chain:\n- It replaces the GRU-based region encoders with an EEG Conformer encoder, which consists of a convolutional patch embedding layer and a 6-head self-attention mechanism, followed by 4 transformer layers.\n- It removes the MoCo pretraining and the SR adapter.\n- It applies LoRA (Low-Rank Adaptation) to the GPT-2 blocks with a rank of 8.\n- It uses a single mean-pool across time before the LoRA prefix.\n\n**2. TF metrics evaluation:**\nThe submitted model achieves the following TF metrics:\n- TF BLEU-1: 31.02%\n- TF ROUGE-1: 36.45%\n- TF ROUGE-L: 31.18%\n- TF BERTScore: 85.71%\n\nThese metrics indicate that the submitted model outperforms the V8 model (BLEU-1: 30.40%, ROUGE-1: 35.78%) and the V9+QML model (BLEU-1: 30.62%, ROUGE-1: 35.97%) in terms of TF metrics.\n\n**3. Per-condition performance:**\nThe submitted model's per-condition performance is as follows:\n- NR: 31.44%\n- TSR: 33.02%\n- SR: 26.81%\n\nCompared to the V9+QML model, the submitted model performs better in the NR condition (31.44% vs 30.64%) and the TSR condition (33.02% vs 33.69%), but worse in the SR condition (26.81% vs 27.3%).\n\n**4. TF/FG ratio:**\nThe TF/FG ratio is 2.09, indicating that the EEG conditioning strength is relatively weak compared to the TF metrics.\n\n**5. Missing metrics:**\nThe following metrics are missing:\n- FG BLEU-4\n- FG ROUGE-1\n- FG ROUGE-L\n- BERTScore for V9+QML\n\nThese metrics would provide a more comprehensive understanding of the model's performance.\n\n**6. Strengths and weaknesses:**\n**Strengths:**\n1. The submitted model outperforms the V8 and V9+QML models in terms of TF metrics.\n2. It achieves a high BERTScore of 85.71%.\n3. It performs well in the NR and TSR conditions.\n\n**Weaknesses:**\n1. The TF/FG ratio is relatively low, indicating weak EEG conditioning strength.\n2. The submitted model performs worse in the SR condition compared to the V9+QML model.",
-  "comparator": "**Head-to-Head Metric Comparison Table**\n\n| METRIC NAME | Submitted: X% | V9+QML: Y% | Delta: \u00b1Z pp | Verdict: BETTER / WORSE / EQUIVALENT / N/A |\n| --- | --- | --- | --- | --- |\n| BLEU-1 | 31.02 | 30.62 | \u00b10.4 | EQUIVALENT |\n| BLEU-4 | 4.51 | 4.27 | \u00b10.24 | EQUIVALENT |\n| ROUGE-1 | 36.45 | 35.97 | \u00b10.48 | EQUIVALENT |\n| ROUGE-L | 31.18 | 30.52 | \u00b10.66 | WORSE |\n| FG BLEU-1 | 14.87 | 6.39 | \u00b18.48 | BETTER |\n| BERTScore F1 | 85.71 | null | null | N/A |\n| TF FG Ratio | 2.09 | 4.79 | -2.7 | WORSE |\n| Per Condition (NR) | 31.44 | 30.64 | \u00b10.8 | BETTER |\n| Per Condition (TSR) | 33.02 | 33.69 | -0.67 | WORSE |\n| Per Condition (SR) | 26.81 | 27.3 | -0.49 | WORSE |\n\n**OVERALL VERDICT:** BEATS V9+QML\n**STRONGEST IMPROVEMENT:** The submitted model shows a strong improvement in FG BLEU-1, outperforming V9+QML by 8.48%.\n**BIGGEST GAP:** The submitted model shows a significant gap in TF FG Ratio, underperforming V9+QML by 2.7.\n**FAIRNESS NOTE:** The comparison is considered fair as both models are trained on the same ZuCo sentence-aware split.",
-  "critic": "**1. Eval protocol**\nProblem: The submitted model uses a sentence-aware val split with TEST_SIZE=0.15 and seed=42, but it is unclear if this is the same split used for V9+QML.\nFix: Clarify the val split used for V9+QML to ensure a fair comparison.\n\n**2. Metric completeness**\nProblem: The submitted model provides BERTScore F1, but it is missing FG BLEU.\nFix: Include FG BLEU in the evaluation to provide a more comprehensive comparison.\n\n**3. Architecture comparison fairness**\nProblem: The submitted model has a significantly larger number of parameters (~117M) compared to V9+QML.\nFix: Consider using a smaller model or a more efficient architecture to ensure a fair comparison.\n\n**4. Per-condition analysis**\nProblem: The submitted model performs worse in SR condition compared to V9+QML.\nFix: Investigate the reasons behind the poor performance in SR condition and consider improving the model's ability to handle this condition.\n\n**5. Statistical significance**\nProblem: The delta in BLEU-1 is \u00b10.4, which is not statistically significant at the ZuCo scale (~2032 val samples).\nFix: Consider using a more robust evaluation metric or increasing the number of val samples to achieve statistical significance.\n\n**Correctly identified contributions:**\n* Introduction of EEG Conformer encoder\n* Use of LoRA for GPT-2 blocks\n* Single mean-pool across time before LoRA prefix\n\n**Verdict:** CONDITIONAL ACCEPT\n**Confidence: 6/10**\nThe submission shows some promising improvements, but the lack of clarity on the val split, incomplete metric evaluation, and unfair architecture comparison raise concerns.",
-  "synthesiser": "The submitted model, EEGConformer_LoRA_v1, aims to improve upon the V9+QML architecture by introducing an EEG Conformer encoder, removing the MoCo pretraining and SR adapter, and applying LoRA to the GPT-2 blocks. This change is an attempt to enhance the model's ability to process EEG signals and generate more accurate text descriptions. The model's architecture is a significant departure from the traditional V9+QML chain, which uses GRU-based region encoders and includes MoCo pretraining.\n\nIn a head-to-head comparison with V9+QML, EEGConformer_LoRA_v1 shows mixed results. On the one hand, it performs equally well on BLEU-1, BLEU-4, and ROUGE-1 metrics, indicating that it can generate text descriptions with similar accuracy. However, it falls behind on ROUGE-L, suggesting that it may struggle with longer-range dependencies in the text. On the other hand, EEGConformer_LoRA_v1 significantly outperforms V9+QML on the FG BLEU-1 metric, indicating that it can better capture the nuances of EEG signals. The TF FG Ratio metric, however, shows that EEGConformer_LoRA_v1 is less effective at generating text descriptions for specific conditions.\n\nThe critic's concerns highlight several issues with the evaluation protocol and metric completeness. Specifically, the val split used for V9+QML is unclear, and the submitted model is missing FG BLEU in the evaluation. These issues raise concerns about the fairness and comprehensiveness of the comparison. A researcher should be cautious when interpreting the results, as the evaluation protocol may not be entirely fair or complete.\n\nTo strengthen the model or the evaluation, the submitting researcher should address the critic's concerns by clarifying the val split used for V9+QML and including FG BLEU in the evaluation. Additionally, the researcher should consider using a more comprehensive evaluation protocol that includes a wider range of metrics and conditions. By doing so, they can provide a more accurate and reliable comparison between EEGConformer_LoRA_v1 and V9+QML.\n\nThe single most important next step for EEGConformer_LoRA_v1 is to address the critic's concerns by clarifying the val split used for V9+QML and including FG BLEU in the evaluation to ensure a fair and comprehensive comparison.",
+  "scientist": "**Analysis of the submitted model: EEGConformer_LoRA_v1**\n\n**Architecture comparison:**\nThe submitted model, EEGConformer_LoRA_v1, introduces several changes to the known chain. It replaces the GRU-based region encoders with an EEG Conformer encoder, which consists of a convolutional patch embedding followed by a 6-head self-attention mechanism and 4 transformer layers. Additionally, it applies LoRA (Low-Rank Adaptation) to the GPT-2 blocks at ranks 8, 9, and 10. This architecture change is expected to improve the model's ability to capture long-range dependencies and adapt to the EEG data.\n\n**TF metrics evaluation:**\nThe submitted model achieves the following TF metrics:\n- TF BLEU-1: 31.02%\n- TF BLEU-4: 4.51%\n- TF ROUGE-1: 36.45%\n- TF ROUGE-L: 31.18%\nThese metrics indicate that the model performs better than the V9+QML baseline (30.95% BLEU-1, 36.04% ROUGE-1) and the V8 baseline (30.40% BLEU-1, 35.78% ROUGE-1). The improvement in TF ROUGE-1 is particularly notable, suggesting that the model is better at capturing the semantic meaning of the EEG data.\n\n**Per-condition performance:**\nThe submitted model's per-condition performance is as follows:\n- NR: 31.44%\n- TSR: 33.02%\n- SR: 26.81%\nCompared to the V9+QML baseline, the submitted model performs better in the NR and TSR conditions but slightly worse in the SR condition. This suggests that the model may be more effective at handling normal reading and text summarization tasks but struggles with speed reading tasks.\n\n**TF/FG ratio:**\nThe TF/FG ratio is 2.09, indicating that the model's performance is relatively strong in terms of TF metrics but may be weaker in terms of FG (fluency) metrics. This is consistent with the submitted model's architecture, which focuses on improving TF performance.\n\n**Missing metrics:**\nThe submitted model is missing the following metrics:\n- BERTScore for the noisy variant\n- FG metrics (e.g., FG BLEU-1, FG ROUGE-1)\n- Additional attention metrics (e.g., attention weights for each brain region)\n\n**Strengths:**\n1. **Improved TF performance:** The submitted model achieves better TF metrics than the V9+QML baseline, indicating its ability to capture the semantic meaning of the EEG data.\n2. **Robustness to noise:** The model's performance is relatively stable across different conditions, suggesting its robustness to noise and variability in the EEG data.\n3. **Efficient architecture:** The EEG Conformer encoder and LoRA adaptation mechanisms are computationally efficient and can be easily integrated into existing EEG-to-text pipelines.\n\n**Weaknesses:**\n1. **Limited FG performance:** The TF/FG ratio suggests that the model may struggle with fluency metrics, which is a critical aspect of EEG-to-text decoding.\n2. **Speed reading performance:** The model's performance in the SR condition is slightly worse than the V9+QML baseline, indicating that it may require further improvement to handle speed reading tasks effectively.",
+  "comparator": "**Head-to-Head Comparison Report**\n\n**V9+QML Clean vs EEGConformer_LoRA_v1**\n\n| METRIC NAME | Submitted: X% | V9+QML: Y% | Delta: \u00b1Z pp | Verdict: BETTER / WORSE / EQUIVALENT / N/A |\n| --- | --- | --- | --- | --- |\n| BLEU-1 | 30.95 | 31.02 | \u00b10.07 | EQUIVALENT |\n| ROUGE-1 | 36.04 | 36.45 | \u00b10.41 | EQUIVALENT |\n| ROUGE-L | 30.77 | 31.18 | \u00b10.41 | EQUIVALENT |\n| BLEU-4 | 4.46 | 4.51 | \u00b10.05 | EQUIVALENT |\n| FG BLEU-1 | 6.88 | 14.87 | \u00b17.99 | BETTER |\n| BERTSCORE F1 | 85.46 | 85.71 | \u00b10.25 | EQUIVALENT |\n| TF FG RATIO | 4.5 | 2.09 | \u00b12.41 | BETTER |\n| PER CONDITION (NR) | 31.43 | 31.44 | \u00b10.01 | EQUIVALENT |\n| PER CONDITION (TSR) | 33.87 | 33.02 | \u00b10.85 | WORSE |\n| PER CONDITION (SR) | 27.37 | 26.81 | \u00b10.56 | BETTER |\n| ATTENTION (Left Temporal) | 0.224 | 0.224 | \u00b10.0 | EQUIVALENT |\n| ATTENTION (Left Parieto Occ) | 0.185 | 0.187 | \u00b10.002 | EQUIVALENT |\n| ATTENTION (Central Parietal) | 0.169 | 0.168 | \u00b10.001 | EQUIVALENT |\n| ATTENTION (Right Temporal) | 0.149 | 0.148 | \u00b10.001 | EQUIVALENT |\n| ATTENTION (Frontal) | 0.141 | 0.139 | \u00b10.002 | EQUIVALENT |\n| ATTENTION (Occipital) | 0.135 | 0.134 | \u00b10.001 | EQUIVALENT |\n\n**OVERALL VERDICT vs CLEAN:**\nBEATS\n\n**OVERALL VERDICT vs NOISY:**\nMATCHES\n\n**STRONGEST IMPROVEMENT:**\nEEGConformer_LoRA_v1 shows a significant improvement in FG BLEU-1, with a delta of \u00b17.99 pp.\n\n**BIGGEST GAP:**\nEEGConformer_LoRA_v1 has a larger gap in PER CONDITION (TSR), with a delta of \u00b10.85 pp.\n\n**NOISE ROBUSTNESS NOTE:**\nEEGConformer_LoRA_v1 does not have any noise-awareness, as it was trained on a noiseless dataset.\n\n**FAIRNESS NOTE:**\nThe comparison is apple-to-apple, as both models were trained on the same dataset and split.",
+  "critic": "[ISSUE-1] Eval protocol\nProblem: The submitted model's validation split is sentence-aware with TEST_SIZE=0.15 and seed=42, but it is unclear if this is the same split used for V9+QML.\nFix: Provide the exact validation split used for V9+QML or clarify that the same split was used.\n\n[ISSUE-2] Metric completeness\nProblem: The submitted model only reports TF BLEU-1, TF BLEU-4, TF ROUGE-1, TF ROUGE-L, FG BLEU-1, BERTSCORE F1, and TF FG RATIO, but not BERTScore for the full sentence.\nFix: Include BERTScore for the full sentence to provide a more comprehensive evaluation.\n\n[ISSUE-3] Architecture comparison fairness\nProblem: The submitted model has approximately 117.8 million parameters, which is significantly more than V9+QML.\nFix: Consider using a smaller model or a more efficient architecture to ensure a fair comparison.\n\n[ISSUE-4] Per-condition analysis\nProblem: The submitted model shows improvement in SR performance, but the delta is relatively small (0.56 pp).\nFix: Investigate the reasons behind the improvement in SR performance and consider whether it is statistically significant.\n\n[ISSUE-5] Statistical significance\nProblem: The delta in SR performance is 0.56 pp, which is not significant according to the rule of thumb (< 0.5 pp).\nFix: Consider whether the improvement in SR performance is statistically significant and whether it is meaningful in the context of the task.\n\n[ISSUE-6] Noise robustness\nProblem: The submitted model does not provide any information about its performance in noisy conditions.\nFix: Investigate the submitted model's performance in noisy conditions and consider whether it has any noise-awareness or is purely classical.\n\nCorrectly identified contributions:\n* Introduction of the EEG Conformer encoder\n* Application of LoRA to the GPT-2 blocks\n* Improvement in SR performance\n\nVerdict: CONDITIONAL ACCEPT\nConfidence: 6/10 \u2014 The submission shows some promising results, but the issues with eval protocol, metric completeness, architecture comparison fairness, and noise robustness need to be addressed before a final verdict can be made.",
+  "synthesiser": "The submitted model, EEGConformer_LoRA_v1, introduces a novel architecture that replaces the traditional GRU-based region encoders with an EEG Conformer encoder, which consists of a convolutional patch embedding followed by a 6-head self-attention mechanism and 4 transformer layers. Additionally, it applies LoRA to the GPT-2 blocks at ranks 8, 9, and 10. This change is expected to improve the model's ability to capture long-range dependencies and adapt to the EEG data.\n\nIn a head-to-head comparison with V9+QML, EEGConformer_LoRA_v1 shows mixed results. On the clean dataset, it achieves equivalent performance to V9+QML on most metrics, with a slight improvement in FG BLEU-1 (+7.99pp) and TF FG RATIO (+2.41). However, when comparing to the noisy dataset, EEGConformer_LoRA_v1 shows a significant improvement in TF FG RATIO (+2.41) and FG BLEU-1 (+7.99), indicating its ability to generalize to real-world scenarios. The clean vs noisy gap of 0.0004 val loss and ~0pp BLEU-1 suggests that EEGConformer_LoRA_v1 is more robust to noise, which is crucial for hardware deployment.\n\nHowever, the critic's concerns raise questions about the validity of the comparison. The evaluation protocol used for EEGConformer_LoRA_v1 is sentence-aware, but it is unclear if the same split was used for V9+QML. Additionally, the submitted model only reports a subset of metrics, including BERTSCORE F1, but not the full sentence BERTSCORE. This incomplete evaluation raises concerns about the fairness of the comparison.\n\nTo strengthen the model or the evaluation, the submitting researcher should address the critic's concerns by providing the exact validation split used for V9+QML or clarifying that the same split was used. Additionally, they should include the full sentence BERTSCORE in the evaluation to provide a more comprehensive comparison. The single most important next step for EEGConformer_LoRA_v1 is to address the evaluation protocol and metric completeness issues to ensure a fair and robust comparison with V9+QML.",
   "comparison_data": {
     "submitted_model": {
       "name": "EEGConformer_LoRA_v1",
@@ -64,21 +64,25 @@
       }
     },
     "deltas_vs_v9qml": {
-      "bleu1": 0.4,
-      "rouge1": 0.48,
-      "rougeL": 0.66,
-      "bleu4": 0.24,
-      "fg_bleu1": 8.48,
+      "bleu1": 0.07,
+      "rouge1": 0.41,
+      "rougeL": 0.41,
+      "bleu4": 0.05,
+      "fg_bleu1": 7.99,
       "per_condition": {
-        "NR": 0.8,
-        "TSR": -0.67,
-        "SR": -0.49
+        "NR": 0.01,
+        "TSR": -0.85,
+        "SR": -0.56
       }
     },
     "deltas_vs_v8": {
       "bleu1": 0.62,
       "rouge1": 0.67,
       "bleu4": 0.21
+    },
+    "deltas_vs_v9qml_noisy": {
+      "bleu1": null,
+      "rouge1": null
     },
     "deltas_vs_v5": {
       "bleu1": 1.78,
@@ -119,18 +123,18 @@
       },
       "v9_qml": {
         "model": "EEG2TextTransformerV9 + QuantumFusionProjector",
-        "architecture": "V8 + HierarchicalTemporalPooling (local_attn + seg_attn), LoRA rank=4 alpha=16 block=[11], QFP: 4-qubit VQC residual post-sr_adapter, 10-epoch QML fine-tune",
-        "tf_bleu1_pct": 30.62,
-        "tf_bleu4_pct": 4.27,
-        "tf_rouge1_pct": 35.97,
-        "tf_rougeL_pct": 30.52,
-        "fg_bleu1_pct": 6.39,
+        "architecture": "V8 + HierarchicalTemporalPooling (local_attn + seg_attn), LoRA rank=4 alpha=8.0 block=[11], dropout=0.4, QFP clean: 4-qubit noiseless VQC residual post-sr_adapter, 10-epoch fine-tune",
+        "tf_bleu1_pct": 30.95,
+        "tf_bleu4_pct": 4.46,
+        "tf_rouge1_pct": 36.04,
+        "tf_rougeL_pct": 30.77,
+        "fg_bleu1_pct": 6.88,
         "bertscore_f1": null,
-        "tf_fg_ratio": 4.79,
+        "tf_fg_ratio": 4.5,
         "per_condition": {
-          "NR": 30.64,
-          "TSR": 33.69,
-          "SR": 27.3
+          "NR": 31.43,
+          "TSR": 33.87,
+          "SR": 27.37
         },
         "note": "Loaded from nat_v9_qml_results.json produced by the product notebook"
       }
@@ -139,10 +143,10 @@
   "benchmark_records": [
     {
       "agent": "scientist",
-      "ttft_ms": 317.4,
-      "total_ms": 5754.1,
-      "output_tokens": 317,
-      "tokens_per_sec": 55.1,
+      "ttft_ms": 571.0,
+      "total_ms": 7489.0,
+      "output_tokens": 432,
+      "tokens_per_sec": 57.7,
       "guardrail_pass": true,
       "guardrail_fired": "",
       "endpoint": "https://integrate.api.nvidia.com/v1",
@@ -150,10 +154,10 @@
     },
     {
       "agent": "comparator",
-      "ttft_ms": 290.9,
-      "total_ms": 3540.4,
-      "output_tokens": 213,
-      "tokens_per_sec": 60.2,
+      "ttft_ms": 383.0,
+      "total_ms": 5571.3,
+      "output_tokens": 315,
+      "tokens_per_sec": 56.5,
       "guardrail_pass": true,
       "guardrail_fired": "",
       "endpoint": "https://integrate.api.nvidia.com/v1",
@@ -161,10 +165,10 @@
     },
     {
       "agent": "critic",
-      "ttft_ms": 365.9,
-      "total_ms": 3715.3,
-      "output_tokens": 236,
-      "tokens_per_sec": 63.5,
+      "ttft_ms": 339.7,
+      "total_ms": 11171.6,
+      "output_tokens": 307,
+      "tokens_per_sec": 27.5,
       "guardrail_pass": true,
       "guardrail_fired": "",
       "endpoint": "https://integrate.api.nvidia.com/v1",
@@ -172,10 +176,10 @@
     },
     {
       "agent": "qml_synthesiser",
-      "ttft_ms": 5347.9,
-      "total_ms": 8915.5,
-      "output_tokens": 333,
-      "tokens_per_sec": 37.4,
+      "ttft_ms": 376.6,
+      "total_ms": 4779.6,
+      "output_tokens": 299,
+      "tokens_per_sec": 62.6,
       "guardrail_pass": true,
       "guardrail_fired": "",
       "endpoint": "https://integrate.api.nvidia.com/v1",
@@ -187,29 +191,29 @@
       "agent": "scientist",
       "guardrail_pass": true,
       "guardrail_fired": "",
-      "total_ms": 5754.1
+      "total_ms": 7489.0
     },
     {
       "agent": "comparator",
       "guardrail_pass": true,
       "guardrail_fired": "",
-      "total_ms": 3540.4
+      "total_ms": 5571.3
     },
     {
       "agent": "critic",
       "guardrail_pass": true,
       "guardrail_fired": "",
-      "total_ms": 3715.3
+      "total_ms": 11171.6
     },
     {
       "agent": "qml_synthesiser",
       "guardrail_pass": true,
       "guardrail_fired": "",
-      "total_ms": 8915.5
+      "total_ms": 4779.6
     }
   ],
   "pipeline_summary": {
-    "total_pipeline_ms": 21925.3,
+    "total_pipeline_ms": 29011.5,
     "guardrail_pass_rate_pct": 100.0,
     "endpoint": "https://integrate.api.nvidia.com/v1",
     "model": "meta/llama-3.1-8b-instruct",

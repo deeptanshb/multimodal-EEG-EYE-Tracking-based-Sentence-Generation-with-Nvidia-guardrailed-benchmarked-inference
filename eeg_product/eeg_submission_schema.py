@@ -3,6 +3,8 @@
 # results and get them compared against the V9+QML baseline.
 #
 # A researcher only needs to fill in EEGModelSubmission — nothing else.
+# Baselines: V5_BASELINE, V8_BASELINE, V9_QML_BASELINE, V9_QML_NOISY_BASELINE
+# Loaders  : load_v9_qml_baseline(), load_v9_qml_noisy_baseline()
 # The system handles computing deltas, running agents, and producing the report.
 #
 # ─────────────────────────────────────────────────────────────────────────────
@@ -49,8 +51,8 @@ V9_QML_BASELINE = {
     "model":         "EEG2TextTransformerV9 + QuantumFusionProjector",
     "architecture":  (
         "V8 + HierarchicalTemporalPooling (local_attn + seg_attn), "
-        "LoRA rank=4 alpha=16 block=[11], "
-        "QFP: 4-qubit VQC residual post-sr_adapter, 10-epoch QML fine-tune"
+        "LoRA rank=4 alpha=8.0 block=[11], dropout=0.4, "
+        "QFP clean: 4-qubit noiseless VQC residual post-sr_adapter, 10-epoch fine-tune"
     ),
     # These values are filled in at runtime from nat_v9_qml_results.json
     # or from the live agent_stats produced by the product notebook.
@@ -64,6 +66,36 @@ V9_QML_BASELINE = {
     "tf_fg_ratio":   None,
     "per_condition": {"NR": None, "TSR": None, "SR": None},
     "note": "Loaded from nat_v9_qml_results.json produced by the product notebook"
+}
+
+
+V9_QML_NOISY_BASELINE = {
+    "model":         "EEG2TextTransformerV9 + NoisyQuantumFusionProjector",
+    "architecture":  (
+        "V9+QML clean + DepolarizingChannel(p=0.01) + PhaseDamping(gamma=0.02) "
+        "on default.mixed density-matrix simulator. "
+        "Training: Gaussian shot-noise sigma=0.03 on VQC output. "
+        "Inference: Monte-Carlo average over 16 noisy circuit passes. "
+        "Initialised from clean QML checkpoint; 10-epoch noise-aware fine-tune."
+    ),
+    # Populated from nat_v9_qml_results.json — noisy_qml_* keys
+    "tf_bleu1_pct":  None,
+    "tf_bleu4_pct":  None,
+    "tf_rouge1_pct": None,
+    "tf_rougeL_pct": None,
+    "fg_bleu1_pct":  None,
+    "bertscore_f1":  None,
+    "tf_fg_ratio":   None,
+    "per_condition": {"NR": None, "TSR": None, "SR": None},
+    "noise_params": {
+        "depolarizing_p":  0.01,
+        "phase_damping":   0.02,
+        "shot_sigma":      0.03,
+        "mc_samples":      16,
+        "best_val_loss":   4.1729,
+        "clean_val_loss":  4.1733,
+    },
+    "note": "Hardware-realistic noise simulation. Loaded from nat_v9_qml_results.json noisy_qml_* keys."
 }
 
 
@@ -94,6 +126,35 @@ def load_v9_qml_baseline(results_json_path: str = "nat_v9_qml_results.json") -> 
     except KeyError as e:
         print(f"⚠  Unexpected JSON structure in {results_json_path}: {e}")
         return V9_QML_BASELINE
+
+
+def load_v9_qml_noisy_baseline(results_json_path: str = "nat_v9_qml_results.json") -> dict:
+    """
+    Load the live V9+QML noisy numbers from the product notebook's output JSON.
+    Returns V9_QML_NOISY_BASELINE with values populated from noisy_qml_* keys.
+    """
+    try:
+        with open(results_json_path) as f:
+            data = json.load(f)
+        lm = data["stats"]["live_metrics"]
+        baseline = dict(V9_QML_NOISY_BASELINE)
+        baseline["tf_bleu1_pct"]  = lm["noisy_qml_tf_bleu1_pct"]
+        baseline["tf_bleu4_pct"]  = lm["noisy_qml_tf_bleu4_pct"]
+        baseline["tf_rouge1_pct"] = lm["noisy_qml_tf_rouge1_pct"]
+        baseline["tf_rougeL_pct"] = lm["noisy_qml_tf_rougeL_pct"]
+        baseline["fg_bleu1_pct"]  = lm.get("noisy_qml_fg_bleu1_pct")
+        baseline["tf_fg_ratio"]   = lm.get("noisy_qml_tf_fg_ratio")
+        baseline["per_condition"] = lm.get("noisy_qml_per_cond_bleu1", {})
+        print(f"✅ V9+QML noisy baseline loaded: BLEU-1={baseline['tf_bleu1_pct']}%  "
+              f"(Δ vs clean: {lm['delta_noisy_vs_clean_bleu1']:+.2f}pp)")
+        return baseline
+    except FileNotFoundError:
+        print(f"⚠  {results_json_path} not found — returning default V9_QML_NOISY_BASELINE")
+        return V9_QML_NOISY_BASELINE
+    except KeyError as e:
+        print(f"⚠  noisy_qml_* keys missing from {results_json_path}: {e}")
+        print("   Run nat_eeg_agents_v9_product.ipynb Cell A (noisy training) first.")
+        return V9_QML_NOISY_BASELINE
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -232,6 +293,14 @@ class EEGModelSubmission:
                 "bleu1":  delta(self.tf_bleu1_pct,  V8_BASELINE["tf_bleu1_pct"]),
                 "rouge1": delta(self.tf_rouge1_pct, V8_BASELINE["tf_rouge1_pct"]),
                 "bleu4":  delta(self.tf_bleu4_pct,  V8_BASELINE["tf_bleu4_pct"]),
+            },
+            "deltas_vs_v9qml_noisy": {
+                "bleu1":   delta(self.tf_bleu1_pct,  v9qml_baseline.get("tf_bleu1_pct")
+                                 if "noisy" in str(v9qml_baseline.get("model","")).lower()
+                                 else None),
+                "rouge1":  delta(self.tf_rouge1_pct, v9qml_baseline.get("tf_rouge1_pct")
+                                 if "noisy" in str(v9qml_baseline.get("model","")).lower()
+                                 else None),
             },
             "deltas_vs_v5": {
                 "bleu1":  delta(self.tf_bleu1_pct,  V5_BASELINE["tf_bleu1_pct"]),

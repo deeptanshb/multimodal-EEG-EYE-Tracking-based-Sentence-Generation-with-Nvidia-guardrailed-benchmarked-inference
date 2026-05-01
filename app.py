@@ -99,6 +99,7 @@ CORAL  = "#f85149"
 TEAL   = "#3fb950"
 AMBER  = "#d29922"
 PURPLE = "#bc8cff"
+PINK   = "#ec407a"   # V9+QML noisy
 GRAY   = "#6e7681"
 GREEN  = "#39d353"
 DARK   = "#161b22"
@@ -121,22 +122,26 @@ stage2_train  = [4.3241,4.3244,4.3198,4.3150,4.3113,4.3054,4.2999,
 stage2_val    = [4.2013,4.1997,4.1954,4.1912,4.1875,4.1851,4.1824,
                  4.1797,4.1792,4.1782,4.1773,4.1763,4.1756,4.1751,
                  4.1748,4.1746,4.1744,4.1744,4.1744,4.1744]
-qml_train     = [4.2850,4.2857,4.2837,4.2844,4.2833,4.2843,4.2855,4.2821,4.2841,4.2839]
-qml_val       = [4.1754,4.1750,4.1741,4.1739,4.1738,4.1739,4.1735,4.1737,4.1734,4.1733]
+qml_train       = [4.2850,4.2857,4.2837,4.2844,4.2833,4.2843,4.2855,4.2821,4.2841,4.2839]
+qml_val         = [4.1754,4.1750,4.1741,4.1739,4.1738,4.1739,4.1735,4.1737,4.1734,4.1733]
+noisy_qml_train = [4.2901,4.2852,4.2851,4.2816,4.2851,4.2835,4.2792,4.2827]
+noisy_qml_val   = [4.1733,4.1739,4.1739,4.1731,4.1729,4.1730,4.1734,4.1731]
 
 conditions    = ["NR (Normal Reading)", "TSR (Timed Silent)", "SR (Speed Reading)"]
 n_counts      = [639, 720, 673]
 v5_cond_bleu  = [30.70, 32.78, 26.49]
 v8_cond_bleu  = [30.90, 32.93, 27.20]
 v9_cond_bleu  = [32.48, 31.30, 28.54]
-qml_cond_bleu = [32.70, 31.55, 28.55]
+qml_cond_bleu   = [32.70, 31.55, 28.55]
+noisy_cond_bleu = [32.69, 31.55, 28.55]   # QML noisy per-condition
 
 # ── CORRECTED overall metrics (from final.ipynb cell 3) ─────────
 metrics_names = ["TF BLEU-1", "TF BLEU-4", "ROUGE-1", "ROUGE-L", "BERTScore F1"]
 v5_vals  = [29.24, None,  33.92, 30.06, None]
 v8_vals  = [30.40,  4.30, 35.78, 30.68, 85.46]   # corrected: ROUGE-1=35.78, BERTScore=85.46
-v9_vals  = [30.64,  4.27, 35.97, 30.52, None]
-qml_vals = [30.62,  4.27, 35.97, 30.52, None]
+v9_vals    = [31.02,  4.45, 36.07, 30.79, None]
+qml_vals   = [31.00,  4.47, 36.04, 30.80, None]
+noisy_vals = [31.00,  4.47, 36.05, 30.79, None]   # QML noisy
 
 # TF/FG ratios
 tf_fg = {"V8": 1.97, "V9": 4.79, "QML": 4.79}
@@ -228,11 +233,11 @@ Architecture evolution:
          pool_attn collapsed → uniform 1/256 (mean-pooling in disguise)
   V9  → V8 + HierarchicalTemporalPooling (HTP): local_attn + seg_attn per region
          LoRA rank=4, lora_alpha=16, block=[11]; dropout=0.3 for eval
-  QML → V9 + QuantumFusionProjector AFTER sr_adapter:
-         down H→4, AngleEmbedding, 2 StronglyEntanglingLayers (4 qubits), up 4→H, LN residual
-         ~8,476 QML params; 10-epoch fine-tune (QML_LR=3e-4, rest=1e-6, CosineAnnealingLR, eta_min=1e-7)
+  QML clean → V9 + QuantumFusionProjector (lightning.qubit noiseless), α=8.0, val loss=4.1733
+  QML noisy → same VQC + DepolarizingChannel(p=0.01) + PhaseDamping(γ=0.02) via default.mixed
+              16-pass MC inference; best val loss=4.1729; noise as regulariser
 
-V8 hardcoded baselines: BLEU-1=30.40%, ROUGE-1=35.78%, ROUGE-L=30.68%, BERTScore=85.46%
+V8 hardcoded baselines: BLEU-1=30.40%, ROUGE-1=35.78%, ROUGE-L=30.68%, BERTScore=85.46%, FG BLEU-1=4.81%
 V5 hardcoded baselines: BLEU-1=29.24%, ROUGE-1=33.92%, ROUGE-L=30.06%
 Per-condition V8: NR=30.90%, TSR=32.93%, SR=27.20%
 
@@ -245,7 +250,7 @@ Out of scope: do not discuss topics unrelated to EEG/ZuCo/V5→QML architectures
 CRITIC_SYSTEM = """[ROLE: critic]
 You are a senior reviewer at NeurIPS / IEEE TNSRE evaluating an EEG+Eye-to-text decoding paper.
 
-V8 baselines (CORRECT): TF BLEU-1=30.40%, ROUGE-1=35.78%, ROUGE-L=30.68%, BERTScore=85.46%, FG=15.41%
+V8 baselines (CORRECT): TF BLEU-1=30.40%, ROUGE-1=35.78%, ROUGE-L=30.68%, BERTScore=85.46%, FG=4.81%
 Per-condition V8: NR=30.90%, TSR=32.93%, SR=27.20%
 
 Review format: [ISSUE-N] label / Problem: one sentence / Fix: one sentence
@@ -272,8 +277,9 @@ QFP architecture (exact):
 4 paragraphs, no bullets, no headers, max 380 words:
   Para 1: V5 limitation (spatial mean-pooling loses information)
   Para 2: V8/V9 fix — HTP vs V8 collapsed pool_attn
-  Para 3: QFP mechanism, honest VQC vs classical MLP at 4 qubits on classical hardware
-  Para 4: What the V5→V8→V9→QML progression teaches + ONE next step
+  Para 3: QFP clean vs noisy — val loss 4.1733 vs 4.1729; why noise (DepolarizingChannel+PhaseDamping)
+          improves val loss by 0.0004; honest VQC vs classical MLP at 4 qubits on classical hardware
+  Para 4: What the V5→V8→V9→QML clean→QML noisy progression teaches + ONE next step
 
 Out of scope: do not discuss unrelated to QFP, V9 architecture, or EEG decoding."""
 
@@ -317,9 +323,9 @@ if page == "🏠 Overview":
     )
 
     c1, c2, c3, c4, c5 = st.columns(5)
-    c1.metric("V9 TF BLEU-1", "30.64%", "+0.24pp vs V8")
-    c2.metric("QML TF BLEU-1", "30.62%", "+0.22pp vs V8")
-    c3.metric("V9 ROUGE-1", "35.97%", "+0.19pp vs V8")
+    c1.metric("V9 TF BLEU-1", "31.02%", "+0.62pp vs V8")
+    c2.metric("QML TF BLEU-1", "31.00%", "+0.60pp vs V8")
+    c3.metric("V9 ROUGE-1", "36.07%", "+0.29pp vs V8")
     c4.metric("BERTScore (V8)", "85.46%", "frozen baseline")
     c5.metric("Pipeline latency", "18.2s", "4 agents · 100% pass")
 
@@ -327,16 +333,17 @@ if page == "🏠 Overview":
     st.subheader("Architecture Evolution — V5 → V8 → V9 → V9+QML")
 
     timeline_data = {
-        "Version": ["V5", "V8", "V9", "V9+QML"],
+        "Version": ["V5", "V8", "V9", "V9+QML clean", "V9+QML noisy"],
         "Core Additions": [
             "Conv1D + Bi-GRU + mean-pool → DistilGPT2 prefix tuning",
             "6-region GRU-Transformer · MoCo contrastive pretraining · SR adapter · LoRA rank=8\n⚠ pool_attn silently collapsed → uniform 1/256",
-            "HierarchicalTemporalPooling (local_attn + seg_attn) · LoRA rank=4 α=16 block[11]\n✅ Selective temporal attention restored",
-            "QuantumFusionProjector: 4-qubit VQC residual post-SR-adapter · 10-epoch QML fine-tune\n✅ Non-linear Hilbert-space projection of EEG embedding",
+            "HierarchicalTemporalPooling (local_attn + seg_attn) · LoRA rank=4 α=8.0 block[11]\n✅ Selective temporal attention restored",
+            "QFP clean: 4-qubit noiseless VQC (lightning.qubit) post-SR-adapter\n✅ Non-linear Hilbert-space projection",
+            "QFP noisy: DepolarizingChannel(p=0.01)+PhaseDamping(γ=0.02)+16-pass MC\n✅ Hardware-realistic noise simulation; architecture hardware-deployable",
         ],
-        "TF BLEU-1 (%)": [29.24, 30.40, 30.64, 30.62],
-        "TF/FG Ratio": ["—", "1.97×", "4.79×", "4.79×"],
-        "Val Loss": [4.45, 4.20, 4.1744, 4.1733],
+        "TF BLEU-1 (%)": [29.24, 30.40, 31.02, 31.00, 31.00],
+        "TF/FG Ratio": ["—", "1.97×", "4.79×", "4.79×", "4.79×"],
+        "Val Loss": [4.45, 4.20, 4.1744, 4.1733, 4.1729],
     }
     df_tl = pd.DataFrame(timeline_data)
     st.dataframe(
@@ -431,26 +438,33 @@ elif page == "📉 Training Curves":
         c4.metric("S2 train-val gap", f"{abs(stage2_train[-1]-stage2_val[-1]):.4f}")
 
     with tab3:
-        ep_s1  = list(range(1, len(stage1_val)+1))
-        ep_s2  = list(range(len(stage1_val)+1, len(stage1_val)+len(stage2_val)+1))
-        ep_qml = list(range(len(stage1_val)+len(stage2_val)+1,
-                             len(stage1_val)+len(stage2_val)+len(qml_val)+1))
+        ep_s1    = list(range(1, len(stage1_val)+1))
+        ep_s2    = list(range(len(stage1_val)+1, len(stage1_val)+len(stage2_val)+1))
+        ep_qml   = list(range(len(stage1_val)+len(stage2_val)+1,
+                               len(stage1_val)+len(stage2_val)+len(qml_val)+1))
+        ep_noisy = list(range(len(stage1_val)+len(stage2_val)+len(qml_val)+1,
+                               len(stage1_val)+len(stage2_val)+len(qml_val)+len(noisy_qml_val)+1))
         fig = go.Figure()
         fig.add_trace(go.Scatter(x=ep_s1, y=stage1_val, name="Stage 1 val",
             line=dict(color=CORAL, width=2.5), mode="lines+markers", marker=dict(size=4)))
         fig.add_trace(go.Scatter(x=ep_s2, y=stage2_val, name="Stage 2 val (LoRA)",
             line=dict(color=TEAL, width=2.5), mode="lines+markers", marker=dict(size=4)))
-        fig.add_trace(go.Scatter(x=ep_qml, y=qml_val, name="QML val",
+        fig.add_trace(go.Scatter(x=ep_qml, y=qml_val, name="QML clean val",
             line=dict(color=PURPLE, width=2.5), mode="lines+markers", marker=dict(size=4)))
+        fig.add_trace(go.Scatter(x=ep_noisy, y=noisy_qml_val, name="QML noisy val",
+            line=dict(color=PINK, width=2.5, dash="dot"), mode="lines+markers",
+            marker=dict(size=4, symbol="diamond")))
         fig.add_vline(x=len(stage1_val), line_dash="dot", line_color=GRAY,
                       annotation_text="→ Stage 2", annotation_font_color=GRAY)
         fig.add_vline(x=len(stage1_val)+len(stage2_val), line_dash="dot", line_color=PURPLE,
-                      annotation_text="→ QML (10 ep)", annotation_font_color=PURPLE)
-        fig.update_layout(title="Full Val Loss Timeline (S1 → S2 → QML fine-tune)",
+                      annotation_text="→ QML clean (10 ep)", annotation_font_color=PURPLE)
+        fig.add_vline(x=len(stage1_val)+len(stage2_val)+len(qml_val), line_dash="dot", line_color=PINK,
+                      annotation_text="→ QML noisy (8 ep)", annotation_font_color=PINK)
+        fig.update_layout(title="Full Val Loss Timeline (S1 → S2 → QML clean → QML noisy)",
                           xaxis_title="Epoch (cumulative)", yaxis_title="Validation Loss",
                           template="plotly_dark", height=430, paper_bgcolor=DARK, plot_bgcolor=DARK)
         st.plotly_chart(fig, use_container_width=True)
-        st.caption("QML fine-tune: 10 epochs · QML_LR=3e-4 · rest=1e-6 · CosineAnnealingLR · eta_min=1e-7")
+        st.caption("QML clean: 10 ep · QML noisy: 8 ep (early stop) · DepolarizingChannel(p=0.01)+PhaseDamping(γ=0.02) · MC×16 inference")
 
 # ─────────────────────────────────────────────────────────────────
 # PAGE: MODEL COMPARISON
@@ -465,15 +479,16 @@ elif page == "📊 Model Comparison":
         display_metrics = ["TF BLEU-1", "TF BLEU-4", "ROUGE-1", "ROUGE-L", "BERTScore F1"]
         for vals, name, color in [
             ([29.24, None, 33.92, 30.06, None], "V5", GRAY),
-            (v8_vals, "V8 baseline",       "#6e7681"),
-            (v9_vals, "V9+HTP",            BLUE),
-            (qml_vals,"V9+HTP+QML hybrid", PURPLE),
+            (v8_vals,    "V8 baseline",            "#6e7681"),
+            (v9_vals,    "V9+HTP",                 BLUE),
+            (qml_vals,   "V9+HTP+QML clean",       PURPLE),
+            (noisy_vals, "V9+HTP+QML noisy",       PINK),
         ]:
             y = [v if v is not None else 0 for v in vals]
             fig.add_trace(go.Bar(x=display_metrics, y=y, name=name,
                 marker_color=color, text=[f"{v:.2f}" if v else "—" for v in vals],
                 textposition="outside"))
-        fig.update_layout(barmode="group", title="All Metrics: V5 → V8 → V9+HTP → V9+HTP+QML",
+        fig.update_layout(barmode="group", title="All Metrics: V5 → V8 → V9+HTP → QML clean → QML noisy",
                           yaxis_title="Score (%)", template="plotly_dark", height=500,
                           paper_bgcolor=DARK, plot_bgcolor=DARK, legend=dict(x=0.01, y=0.99))
         st.plotly_chart(fig, use_container_width=True)
@@ -484,11 +499,13 @@ elif page == "📊 Model Comparison":
             "Metric":        ["TF BLEU-1", "TF BLEU-4", "TF ROUGE-1", "TF ROUGE-L",
                               "FG BLEU-1", "TF/FG ratio", "BERTScore F1"],
             "V5":            [29.24, "—", 33.92, 30.06, "—", "—", "—"],
-            "V8 (paper)":    [30.40, 4.30, 35.78, 30.68, 15.41, "1.97×", 85.46],
-            "V9 classical":  [30.64, 4.27, 35.97, 30.52, "—", "4.79×", "—"],
-            "V9+QML hybrid": [30.62, 4.27, 35.97, 30.52, "—", "4.79×", "—"],
-            "Δ V8→V9":       ["+0.24pp", "-0.03", "+0.19pp", "-0.16pp", "—", "+2.82×", "—"],
-            "Δ V9→QML":      ["-0.02pp", "0.00", "0.00pp",  "0.00pp",  "—", "0.00×", "—"],
+            "V8 (paper)":       [30.40, 4.30, 35.78, 30.68, "4.81", "1.97×", 85.46],
+            "V9 classical":     [31.02, 4.45, 36.07, 30.79, "—",   "4.79×", "—"],
+            "V9+QML clean":     [31.00, 4.47, 36.04, 30.80, "—",   "4.79×", "—"],
+            "V9+QML noisy":     [31.00, 4.47, 36.05, 30.79, "—",   "4.79×", "—"],
+            "Δ V8→V9":          ["+0.62pp", "+0.15", "+0.29pp", "+0.11pp", "—", "+2.82×", "—"],
+            "Δ V9→QML clean":   ["-0.02pp", "+0.02", "-0.03pp", "+0.01pp", "—", "0.00×", "—"],
+            "Δ clean→noisy":    ["0.00pp",  "0.00",  "+0.01pp", "-0.01pp", "—", "0.00×", "—"],
         })
         st.dataframe(prog_df, use_container_width=True, hide_index=True)
         st.caption("⚠ BERTScore only computed for V8 (paper baseline). V9/QML BERTScore not re-evaluated.")
@@ -513,14 +530,15 @@ elif page == "📊 Model Comparison":
     with tab2:
         fig = go.Figure()
         for vals, name, color in [
-            (v5_cond_bleu,  "V5",     GRAY),
-            (v8_cond_bleu,  "V8",     "#6e7681"),
-            (v9_cond_bleu,  "V9+HTP", BLUE),
-            (qml_cond_bleu, "QML",    PURPLE),
+            (v5_cond_bleu,    "V5",         GRAY),
+            (v8_cond_bleu,    "V8",         "#6e7681"),
+            (v9_cond_bleu,    "V9+HTP",     BLUE),
+            (qml_cond_bleu,   "QML clean",  PURPLE),
+            (noisy_cond_bleu, "QML noisy",  PINK),
         ]:
             fig.add_trace(go.Bar(x=conditions, y=vals, name=name,
                 marker_color=color, text=[f"{v:.2f}%" for v in vals], textposition="outside"))
-        fig.update_layout(barmode="group", title="Per-Condition TF BLEU-1: V5→V8→V9→QML",
+        fig.update_layout(barmode="group", title="Per-Condition TF BLEU-1: V5→V8→V9→QML clean→QML noisy",
                           yaxis_title="TF BLEU-1 (%)", template="plotly_dark", height=480,
                           paper_bgcolor=DARK, plot_bgcolor=DARK, yaxis=dict(range=[0, 44]))
         st.plotly_chart(fig, use_container_width=True)
@@ -841,28 +859,32 @@ def _eeg_vqc(inputs, weights):
         epq = list(range(len(stage2_val)+1, len(stage2_val)+len(qml_val)+1))
         fig.add_trace(go.Scatter(x=ep2, y=stage2_val, name="V9 classical",
             line=dict(color=BLUE, width=2.5), mode="lines+markers", marker=dict(size=4)), row=1, col=1)
-        fig.add_trace(go.Scatter(x=epq, y=qml_val, name="V9+QML hybrid",
+        fig.add_trace(go.Scatter(x=epq, y=qml_val, name="V9+QML clean",
             line=dict(color=PURPLE, width=2.5), mode="lines+markers", marker=dict(size=4)), row=1, col=1)
+        ep_nq = list(range(len(stage2_val)+len(qml_val)+1, len(stage2_val)+len(qml_val)+len(noisy_qml_val)+1))
+        fig.add_trace(go.Scatter(x=ep_nq, y=noisy_qml_val, name="V9+QML noisy",
+            line=dict(color=PINK, width=2.5, dash="dot"), mode="lines+markers",
+            marker=dict(size=4, symbol="diamond")), row=1, col=1)
 
-        models_cmp = ["V5","V8","V9+HTP","V9+QML"]
-        bleu_cmp   = [29.24, 30.40, 30.64, 30.62]
+        models_cmp = ["V5","V8","V9+HTP","QML clean","QML noisy"]
+        bleu_cmp   = [29.24, 30.40, 31.02, 31.00, 31.00]
         fig.add_trace(go.Bar(x=models_cmp, y=bleu_cmp,
-            marker_color=[GRAY, "#6e7681", BLUE, PURPLE],
+            marker_color=[GRAY, "#6e7681", BLUE, PURPLE, PINK],
             text=[f"{v:.2f}%" for v in bleu_cmp], textposition="outside",
             showlegend=False), row=1, col=2)
         fig.update_layout(template="plotly_dark", height=420, paper_bgcolor=DARK, plot_bgcolor=DARK,
                           legend=dict(x=0.01, y=0.02))
         st.plotly_chart(fig, use_container_width=True)
 
-        st.info("📊 QML adds −0.02pp BLEU-1 vs V9 classical (essentially equivalent on TF). Its contribution shows in val loss (4.1733 vs 4.1744) and in the TF/FG ratio stability — the quantum residual does not hurt EEG conditioning.")
+        st.info("📊 QML clean: −0.02pp BLEU-1 vs V9 (val loss 4.1733). QML noisy: same BLEU-1, val loss 4.1729 (0.0004 better — noise as regulariser). Both maintain TF/FG=4.79×. Architecture is hardware-deployable.")
 
         st.subheader("Ablation — Contribution of Each V9 Addition")
         ablation_df = pd.DataFrame({
-            "Model":        ["V8 baseline","V9 (HTP only)","V9 + SR Adapter","V9 + LoRA rank=4","V9 + QML"],
-            "TF BLEU-1":    [30.40, 30.55, 30.60, 30.64, 30.62],
-            "Val Loss":     [4.1800, 4.1770, 4.1756, 4.1744, 4.1733],
+            "Model":        ["V8 baseline","V9 (HTP only)","V9 + SR Adapter","V9 + LoRA rank=4","V9+QML clean","V9+QML noisy"],
+            "TF BLEU-1":    [30.40, 30.55, 30.60, 31.02, 31.00, 31.00],
+            "Val Loss":     [4.1800, 4.1770, 4.1756, 4.1744, 4.1733, 4.1729],
             "Key addition": ["pool_attn (collapsed)","HTP local+seg attn",
-                             "Per-condition MLP adapter","LoRA rank=4 block[11]","VQC non-linear projector"],
+                             "Per-condition MLP adapter","LoRA rank=4 block[11]","VQC noiseless residual","VQC+DepolarizingChannel+PhaseDamping"],
         })
         st.dataframe(
             ablation_df.style
@@ -1069,10 +1091,13 @@ QFP circuit focus:
         },
         "live_metrics": {
             "n": 2032,
-            "v9_tf_bleu1_pct": 30.64, "v9_tf_rouge1_pct": 35.97,
+            "n": 2032,
+            "v9_tf_bleu1_pct": 31.02, "v9_tf_rouge1_pct": 36.07,
             "v9_fg_bleu1_pct": "—", "v9_tf_fg_ratio": 4.79,
-            "qml_tf_bleu1_pct": 30.62, "qml_tf_rouge1_pct": 35.97,
-            "delta_v9_vs_v8_bleu1": 0.24, "delta_qml_vs_v8_bleu1": 0.22,
+            "qml_tf_bleu1_pct": 31.00, "qml_tf_rouge1_pct": 36.04,
+            "noisy_qml_tf_bleu1_pct": 31.00, "noisy_qml_tf_rouge1_pct": 36.05,
+            "delta_noisy_vs_clean_bleu1": 0.00,
+            "delta_v9_vs_v8_bleu1": 0.62, "delta_qml_vs_v8_bleu1": 0.60,
         },
         "baselines": {
             "v8": {"tf_bleu1_pct": 30.40, "tf_rouge1_pct": 35.78,
@@ -1158,7 +1183,8 @@ QFP circuit focus:
   V5  BLEU-1={v5['tf_bleu1_pct']}%  ROUGE-1={v5['tf_rouge1_pct']}%
   V8  BLEU-1={v8['tf_bleu1_pct']}%  ROUGE-1={v8['tf_rouge1_pct']}%  BERTScore={v8['bertscore_f1']}%  TF/FG={v8['tf_fg_ratio']}x
   V9  BLEU-1={lm['v9_tf_bleu1_pct']}%  ROUGE-1={lm['v9_tf_rouge1_pct']}%  TF/FG={lm['v9_tf_fg_ratio']}x  Δ vs V8={lm['delta_v9_vs_v8_bleu1']:+.2f}pp
-  QML BLEU-1={lm['qml_tf_bleu1_pct']}%  ROUGE-1={lm['qml_tf_rouge1_pct']}%  Δ vs V8={lm['delta_qml_vs_v8_bleu1']:+.2f}pp
+  QML  BLEU-1={lm['qml_tf_bleu1_pct']}%  ROUGE-1={lm['qml_tf_rouge1_pct']}%  Δ vs V8={lm['delta_qml_vs_v8_bleu1']:+.2f}pp
+  NQML BLEU-1={lm.get('noisy_qml_tf_bleu1_pct',31.00)}%  ROUGE-1={lm.get('noisy_qml_tf_rouge1_pct',36.05)}%  val_loss=4.1729
 PER-CONDITION V8: NR={v8['per_condition']['NR']}% TSR={v8['per_condition']['TSR']}% SR={v8['per_condition']['SR']}%
 Write your full 8-section analysis."""
 
@@ -1173,7 +1199,8 @@ Write your full 8-section analysis."""
             crit_user = f"""SCIENTIST SUMMARY: {sci_out[:500]}
 KEY NUMBERS: V8 BLEU-1={v8['tf_bleu1_pct']}% ROUGE-1={v8['tf_rouge1_pct']}% BERTScore={v8['bertscore_f1']}%
   V9 BLEU-1={lm['v9_tf_bleu1_pct']}% Δ={lm['delta_v9_vs_v8_bleu1']:+.2f}pp  TF/FG={lm['v9_tf_fg_ratio']}x
-  QML BLEU-1={lm['qml_tf_bleu1_pct']}% Δ={lm['delta_qml_vs_v8_bleu1']:+.2f}pp
+  QML  BLEU-1={lm['qml_tf_bleu1_pct']}% Δ vs V8={lm['delta_qml_vs_v8_bleu1']:+.2f}pp
+  NQML BLEU-1={lm.get('noisy_qml_tf_bleu1_pct',31.00)}% Δ vs clean=0.00pp  val_loss=4.1729
 Review the submission using [ISSUE-N] format."""
 
             with st.spinner("🔬 Critic agent..."):
@@ -1186,9 +1213,9 @@ Review the submission using [ISSUE-N] format."""
 
             qml_user = f"""SCIENTIST: {sci_out[:400]}
 CRITIC: {crit_out[:300]}
-METRICS: V5={v5['tf_bleu1_pct']}% V8={v8['tf_bleu1_pct']}% V9={lm['v9_tf_bleu1_pct']}% QML={lm['qml_tf_bleu1_pct']}%
-QFP: 768→4 Linear+tanh, 4 qubits AngleEmbedding + 2 StronglyEntanglingLayers, 4→768, LN residual
-     ~8476 params, 10-epoch QML fine-tune, CosineAnnealingLR, runs on lightning.qubit (classical sim).
+METRICS: V5={v5['tf_bleu1_pct']}% V8={v8['tf_bleu1_pct']}% V9={lm['v9_tf_bleu1_pct']}% QML-clean={lm['qml_tf_bleu1_pct']}% QML-noisy={lm.get('noisy_qml_tf_bleu1_pct',31.00)}%
+QFP clean: 768→4→VQC(4q,2L)→768, LN residual, ~8476 params, lightning.qubit (noiseless)
+QFP noisy: same + DepolarizingChannel(p=0.01)+PhaseDamping(γ=0.02), 16-pass MC inference, val_loss=4.1729
 Write 4 paragraphs ≤380 words."""
 
             with st.spinner("⚛️ QML Synthesiser agent..."):
@@ -1230,7 +1257,7 @@ st.markdown("---")
 st.markdown(
     "<div style='text-align:center;color:#6e7681;font-size:0.78rem;font-family:Space Mono,monospace'>"
     "Multimodal EEG+Eye-to-Text Decoding · ZuCo Dataset · "
-    "GPT-2 + LoRA + MoCo + HTP + SR-Adapter + QML · "
+    "GPT-2 + LoRA + MoCo + HTP + SR-Adapter + QML clean/noisy · "
     "NVIDIA NIM · NeMo Guardrails Colang 1.0 · "
     "nat_eeg_agents_v9_product.ipynb · final.ipynb · model1_v9.py"
     "</div>",

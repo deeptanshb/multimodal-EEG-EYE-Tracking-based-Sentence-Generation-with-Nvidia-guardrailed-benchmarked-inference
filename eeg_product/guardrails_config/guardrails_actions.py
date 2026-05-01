@@ -71,7 +71,11 @@ async def self_check_relevance(response: str, context: str = "EEG-to-text neuros
         "eeg", "zuco", "bleu", "rouge", "bertscore", "attention", "encoder",
         "transformer", "gpt", "lora", "htp", "qml", "quantum", "neuroscience",
         "region", "temporal", "condition", "val", "baseline", "spectral",
-        "waveform", "decoding", "moco", "stage", "checkpoint"
+        "waveform", "decoding", "moco", "stage", "checkpoint",
+        # noisy QML vocabulary — added for NoisyQuantumFusionProjector support
+        "noisy", "noise", "depolarizing", "phase damping", "decoherence",
+        "hardware", "monte carlo", "circuit", "fidelity", "gate error",
+        "noiseless", "clean qml", "noisy qml", "mc average",
     ]
 
     text = response.lower()
@@ -84,9 +88,38 @@ async def self_check_relevance(response: str, context: str = "EEG-to-text neuros
     return True
 
 
+
+@action(name="check_noisy_qml_keys")
+async def check_noisy_qml_keys(stats: str) -> bool:
+    """
+    Verify that the agent_stats payload passed to the QML synthesiser
+    contains the noisy QML metric keys added in nat_eeg_agents_v9_product.ipynb.
+    Called from the 'check noisy qml context' flow in rails.co.
+
+    Required keys:
+      noisy_qml_tf_bleu1_pct, noisy_qml_tf_rouge1_pct,
+      delta_noisy_vs_clean_bleu1, v9_qml_noisy_hybrid (attention block)
+    """
+    required = [
+        "noisy_qml_tf_bleu1_pct",
+        "noisy_qml_tf_rouge1_pct",
+        "delta_noisy_vs_clean_bleu1",
+        "v9_qml_noisy_hybrid",
+    ]
+    stats_str = str(stats).lower()
+    missing = [k for k in required if k.lower() not in stats_str]
+    if missing:
+        print(f"  [guardrail] noisy QML keys missing from payload: {missing}")
+        return False
+    return True
+
 @action(name="get_agent_role")
 async def get_agent_role(system_prompt: str) -> str:
-    """Extract agent role from the system prompt for dialog rail routing."""
+    """
+    Extract agent role from the system prompt for dialog rail routing.
+    Roles: scientist | critic | qml_synthesiser (handles both clean + noisy QML).
+    The qml_synthesiser role covers noisy QML analysis — no separate role needed.
+    """
     sp = system_prompt.lower()
     if "neuroscience and nlp researcher" in sp:
         return "scientist"

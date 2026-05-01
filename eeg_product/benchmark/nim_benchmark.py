@@ -101,7 +101,8 @@ class AgentBenchmarkReport:
 
         if "__pipeline__" in self.summary:
             p = self.summary["__pipeline__"]
-            print(f"\n── FULL PIPELINE (3 agents sequential) ────────────────")
+            print(f"\n── FULL PIPELINE (3 agents sequential: scientist/critic/qml_synthesiser) ─")
+            print(f"     NOTE: qml_synthesiser covers both clean QML and noisy QML analysis")
             print(f"  Total latency mean={p['total_pipeline_ms_mean']}ms  "
                   f"p95={p['total_pipeline_ms_p95']}ms")
             print(f"  Overall guardrail pass: {p['overall_guardrail_pass_pct']}%")
@@ -316,14 +317,19 @@ async def default_guardrail_check(response: str, agent: str) -> tuple[bool, str]
     domain_terms = ["eeg","zuco","bleu","rouge","bertscore","attention","encoder",
                     "transformer","gpt","lora","htp","qml","quantum","neuroscience",
                     "region","temporal","condition","val","baseline","spectral",
-                    "decoding","moco","stage","checkpoint"]
+                    "decoding","moco","stage","checkpoint",
+                    # noisy QML vocabulary
+                    "noisy","noise","depolarizing","phase damping","decoherence",
+                    "hardware","monte carlo","circuit","fidelity","gate error",
+                    "noiseless","clean qml","noisy qml","mc average"]
     found = sum(1 for t in domain_terms if t in text)
     if found < 3:
         return False, f"low_domain_relevance:found={found}"
 
     # 3. Agent-specific scope
     if agent == "qml_synthesiser":
-        qml_terms = ["quantum","qml","vqc","qubit","pennylane","circuit","classical","residual"]
+        qml_terms = ["quantum","qml","vqc","qubit","pennylane","circuit","classical","residual",
+                     "noisy","depolarizing","phase damping","monte carlo","noise","hardware"]
         if not any(t in text for t in qml_terms):
             return False, "qml_scope:no_quantum_terms"
 
@@ -349,14 +355,29 @@ if __name__ == "__main__":
     # Minimal test payload
     test_payload = json.dumps({
         "live_metrics": {
-            "n": 100,
-            "v9_tf_bleu1_pct": 31.5,
-            "v9_tf_rouge1_pct": 36.2,
-            "qml_tf_bleu1_pct": 31.8,
-            "delta_v9_vs_v8_bleu1": 1.1,
+            "n": 2032,
+            "v9_tf_bleu1_pct": 31.02,
+            "v9_tf_rouge1_pct": 36.07,
+            "qml_tf_bleu1_pct": 31.00,
+            "delta_v9_vs_v8_bleu1": 0.62,
+            "delta_qml_vs_v9_bleu1": -0.02,
+            "delta_qml_vs_v8_bleu1": 0.60,
+            # noisy QML keys (required by check_noisy_qml_keys guardrail)
+            "noisy_qml_tf_bleu1_pct": 31.00,
+            "noisy_qml_tf_rouge1_pct": 36.05,
+            "delta_noisy_vs_clean_bleu1": 0.00,
+            "delta_noisy_vs_v8_bleu1": 0.60,
+        },
+        "attention_analysis": {
+            "v9_qml_noisy_hybrid": {
+                "cross_region_fusion": {
+                    "values": {}, "dominant": "Left_Temporal"
+                }
+            }
         }
     }, indent=2)
 
+    # QML_SYSTEM prompt now covers both clean and noisy QML variants
     from nat_agents_guardrailed import SCIENTIST_SYSTEM, CRITIC_SYSTEM, QML_SYSTEM
 
     bm = NIMBenchmark(endpoint=args.endpoint, api_key=api_key, model=args.model)
