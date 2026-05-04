@@ -39,10 +39,10 @@ V8_BASELINE = {
     "tf_bleu4_pct":  4.30,
     "tf_rouge1_pct": 35.78,
     "tf_rougeL_pct": 30.68,
-    "fg_bleu1_pct":  15.41,
+    "fg_bleu1_pct":  4.92,
     "bertscore_f1":  85.46,
     "per_condition": {"NR": 30.90, "TSR": 32.93, "SR": 27.20},
-    "tf_fg_ratio":   1.97,
+    "tf_fg_ratio":   6.19,
     "note": "pool_attn collapsed → 1/256; true cross-region in self.fusion MHA"
 }
 

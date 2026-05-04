@@ -1,0 +1,163 @@
+{
+  "overall_bleu1": 30.95,
+  "summary": {
+    "mean": 16.56,
+    "std": 0.33,
+    "range_pp": 0.95,
+    "min": {
+      "subject": "ZMG",
+      "bleu1": 16.09
+    },
+    "max": {
+      "subject": "YFS",
+      "bleu1": 17.04
+    },
+    "outliers": []
+  },
+  "per_subject": [
+    {
+      "subject_id": "YAC",
+      "n": 82,
+      "bleu1": 16.8,
+      "bleu4": 1.85,
+      "rouge1": 23.59,
+      "rougeL": 20.69,
+      "std_b1": 10.34
+    },
+    {
+      "subject_id": "YAK",
+      "n": 103,
+      "bleu1": 17.02,
+      "bleu4": 1.91,
+      "rouge1": 23.66,
+      "rougeL": 20.59,
+      "std_b1": 9.74
+    },
+    {
+      "subject_id": "YDG",
+      "n": 115,
+      "bleu1": 16.95,
+      "bleu4": 1.91,
+      "rouge1": 23.73,
+      "rougeL": 20.61,
+      "std_b1": 9.74
+    },
+    {
+      "subject_id": "YFS",
+      "n": 112,
+      "bleu1": 17.04,
+      "bleu4": 1.94,
+      "rouge1": 23.74,
+      "rougeL": 20.81,
+      "std_b1": 10.06
+    },
+    {
+      "subject_id": "ZAB",
+      "n": 153,
+      "bleu1": 16.55,
+      "bleu4": 1.97,
+      "rouge1": 23.19,
+      "rougeL": 20.06,
+      "std_b1": 9.48
+    },
+    {
+      "subject_id": "ZDM",
+      "n": 143,
+      "bleu1": 16.17,
+      "bleu4": 2.11,
+      "rouge1": 22.64,
+      "rougeL": 19.59,
+      "std_b1": 9.6
+    },
+    {
+      "subject_id": "ZDN",
+      "n": 116,
+      "bleu1": 16.64,
+      "bleu4": 2.01,
+      "rouge1": 22.78,
+      "rougeL": 19.61,
+      "std_b1": 9.72
+    },
+    {
+      "subject_id": "ZGW",
+      "n": 145,
+      "bleu1": 16.27,
+      "bleu4": 2.1,
+      "rouge1": 23.09,
+      "rougeL": 20.1,
+      "std_b1": 9.46
+    },
+    {
+      "subject_id": "ZJM",
+      "n": 164,
+      "bleu1": 16.11,
+      "bleu4": 1.98,
+      "rouge1": 22.93,
+      "rougeL": 19.83,
+      "std_b1": 9.58
+    },
+    {
+      "subject_id": "ZJN",
+      "n": 166,
+      "bleu1": 16.36,
+      "bleu4": 2.12,
+      "rouge1": 23.08,
+      "rougeL": 19.95,
+      "std_b1": 10.08
+    },
+    {
+      "subject_id": "ZJS",
+      "n": 112,
+      "bleu1": 16.17,
+      "bleu4": 1.96,
+      "rouge1": 22.74,
+      "rougeL": 19.55,
+      "std_b1": 9.25
+    },
+    {
+      "subject_id": "ZKB",
+      "n": 104,
+      "bleu1": 16.97,
+      "bleu4": 1.99,
+      "rouge1": 23.97,
+      "rougeL": 19.93,
+      "std_b1": 9.36
+    },
+    {
+      "subject_id": "ZKH",
+      "n": 162,
+      "bleu1": 16.79,
+      "bleu4": 2.16,
+      "rouge1": 23.74,
+      "rougeL": 20.58,
+      "std_b1": 9.65
+    },
+    {
+      "subject_id": "ZKW",
+      "n": 167,
+      "bleu1": 16.55,
+      "bleu4": 2.06,
+      "rouge1": 23.27,
+      "rougeL": 20.19,
+      "std_b1": 9.41
+    },
+    {
+      "subject_id": "ZMG",
+      "n": 105,
+      "bleu1": 16.09,
+      "bleu4": 2.06,
+      "rouge1": 22.65,
+      "rougeL": 19.25,
+      "std_b1": 10.25
+    },
+    {
+      "subject_id": "ZPH",
+      "n": 83,
+      "bleu1": 16.53,
+      "bleu4": 2.05,
+      "rouge1": 23.24,
+      "rougeL": 20.03,
+      "std_b1": 9.36
+    }
+  ]
+}

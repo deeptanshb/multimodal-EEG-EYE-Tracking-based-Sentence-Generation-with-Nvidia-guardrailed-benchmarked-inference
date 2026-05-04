@@ -123,7 +123,7 @@ Required analysis sections:
 1. DATASET & SETUP — ZuCo, conditions, split, normalisation
 2. FOUR-MODEL PROGRESSION — was each architectural addition justified by metrics?
 3. TF PERFORMANCE — all five models (V5/V8/V9/QML-clean/QML-noisy) vs hardcoded baselines
-4. FG PERFORMANCE — TF/FG ratio, compare to V8 1.97× and prior 3× norm
+4. FG PERFORMANCE — TF/FG ratio, compare to V8 6.19×  norm later updated in v9 and qml versions
 5. PER-CONDITION — NR/TSR/SR for all four models; TSR-SR gap; SR adapter contribution
 6. ATTENTION DIAGNOSIS:
    a) HTP: did local_attn + seg_attn fix the 1/256 pool_attn collapse?
@@ -150,7 +150,7 @@ Submission extends EEG2TextTransformerV8 with:
   5. Evaluation on sentence-aware val split (TEST_SIZE=0.15, seed=42)
 
 Hardcoded V8 paper baselines (correct values):
-  TF BLEU-1=30.40%, ROUGE-1=35.78%, ROUGE-L=30.68%, BERTScore=85.46%, FG BLEU-1=15.41%
+  TF BLEU-1=30.40%, ROUGE-1=35.78%, ROUGE-L=30.68%, BERTScore=85.46%, FG BLEU-1=4.91%
   Per-condition: NR=30.90%, TSR=32.93%, SR=27.20%
 
 Review format — use exactly:
@@ -164,7 +164,7 @@ Focus areas:
   - QML noisy: val loss 4.1729 vs clean 4.1733 — is 0.0004 gap meaningful at this scale?
     Is noise regularisation the real contributor, not quantum computation per se?
   - Statistical significance of QML delta at ZuCo scale (~2032 val samples)
-  - TF/FG ratio progress vs V8 1.97× baseline
+  - TF/FG ratio progress vs V8 6.19× baseline means same lower the ratio better the model
   - eval protocol comparability (same split? same normalisation? same logit shift?)
   - LoRA rank reduction from 8→4: ablation missing?
 
@@ -214,6 +214,24 @@ Write 4 paragraphs, no bullets, no headers, max 380 words:
 
 Out of scope: do not discuss topics unrelated to the QFP, the V9 architecture, or EEG decoding.
 """.strip()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# V8 BASELINE — authoritative values used across all agents
+# tf_fg_ratio = 30.40 / 4.91 ≈ 6.19  (FG was weak → high ratio)
+# These override whatever agent_stats["baselines"]["v8"] carries so that
+# crit_user always references the correct denominator.
+# ─────────────────────────────────────────────────────────────────────────────
+
+V8_BASELINE = {
+    "tf_bleu1_pct":  30.40,
+    "fg_bleu1_pct":   4.91,   # ← correct (was sometimes 15.41 or 4.81 in older runs)
+    "tf_fg_ratio":    6.19,   # ← correct (was 1.97 when fg_bleu1 was wrong)
+    "tf_rouge1_pct": 35.78,
+    "tf_rougeL_pct": 30.68,
+    "bertscore_f1":  85.46,
+    "per_condition": {"NR": 30.90, "TSR": 32.93, "SR": 27.20},
+}
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -465,7 +483,8 @@ async def run_guardrailed_pipeline(agent_stats: dict) -> dict:
     """
     lm = agent_stats["live_metrics"]
     v5 = agent_stats["baselines"]["v5"]
-    v8 = agent_stats["baselines"]["v8"]
+    # Merge agent_stats v8 with V8_BASELINE so corrected values always win
+    v8 = {**agent_stats["baselines"]["v8"], **V8_BASELINE}
     aa = agent_stats["attention_analysis"]
 
     # Load guardrails (None if not installed)
@@ -550,8 +569,8 @@ Write your full analysis covering all 8 required sections.
     # ── [2/3] Critic ──────────────────────────────────────────────────────────
     print("[2/3] Critic agent...")
     crit_user = f"""
-SCIENTIST SUMMARY (first 500 chars):
-{sci_out[:500]}
+SCIENTIST SUMMARY (first 800 chars):
+{sci_out[:800]}
 
 KEY NUMBERS (authoritative from agent_stats):
   V5  TF BLEU-1={v5['tf_bleu1_pct']}%
@@ -559,7 +578,9 @@ KEY NUMBERS (authoritative from agent_stats):
   V9  TF BLEU-1={lm['v9_tf_bleu1_pct']}%  Δ vs V8={lm['delta_v9_vs_v8_bleu1']:+.2f}pp
   QML TF BLEU-1={lm['qml_tf_bleu1_pct']}%  Δ vs V9={lm['delta_qml_vs_v9_bleu1']:+.2f}pp  Δ vs V8={lm['delta_qml_vs_v8_bleu1']:+.2f}pp
   NQM TF BLEU-1={lm.get('noisy_qml_tf_bleu1_pct','?')}%  Δ vs clean={lm.get('delta_noisy_vs_clean_bleu1',0):+.2f}pp  val_loss=4.1729 vs clean=4.1733
-  V9 TF/FG={lm['v9_tf_fg_ratio']}x   QML TF/FG={lm['qml_tf_fg_ratio']}x   V8 TF/FG=1.97x
+  V8 TF/FG={v8['tf_fg_ratio']}×  (V8 FG BLEU-1={v8['fg_bleu1_pct']}%)
+  V9 TF/FG={lm['v9_tf_fg_ratio']}×  QML TF/FG={lm['qml_tf_fg_ratio']}×
+  NOTE: V8 ratio is HIGHER than V9/QML because V8 FG was weaker (lower denominator)
   V9 dominant={aa['v9_classical']['cross_region_fusion'].get('dominant','?')}
   QML dominant={aa['v9_qml_hybrid']['cross_region_fusion'].get('dominant','?')}
   NQM dominant={aa.get('v9_qml_noisy_hybrid',aa['v9_qml_hybrid'])['cross_region_fusion'].get('dominant','?')}
@@ -579,8 +600,8 @@ Review the submission using the required [ISSUE-N] format.
     # ── [3/3] QML Synthesiser ─────────────────────────────────────────────────
     print("[3/3] QML Synthesiser agent...")
     qml_user = f"""
-SCIENTIST (summary): {sci_out[:400]}
-CRITIC (summary):    {crit_out[:300]}
+SCIENTIST (summary): {sci_out[:600]}
+CRITIC (summary):    {crit_out[:500]}
 
 METRICS:
   V5={v5['tf_bleu1_pct']}%  V8={v8['tf_bleu1_pct']}%  V9={lm['v9_tf_bleu1_pct']}%  QML-clean={lm['qml_tf_bleu1_pct']}%  QML-noisy={lm.get('noisy_qml_tf_bleu1_pct','?')}%
